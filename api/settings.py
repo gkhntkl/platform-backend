@@ -12,9 +12,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = ')vo$dy^%t#dx!nv(nwy*)(*x9cb26cbnfa#vvj0!(drari-01t'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['18.217.10.84','localhost','127.0.0.1']
+ALLOWED_HOSTS = ['13.59.116.220']
 
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
@@ -69,7 +69,7 @@ ROOT_URLCONF = 'api.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [os.path.join(BASE_DIR,'build')],
+        'DIRS': [],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -134,14 +134,6 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/3.1/howto/static-files/
-
-STATIC_URL = '/static/'
-
-STATIC_ROOT = os.path.join(BASE_DIR,'staticfiles')
-
-STATICFILES_DIRS = [os.path.join(BASE_DIR,'build/static'),
-                    os.path.join(BASE_DIR,'build')]
-
 
 HALL_MODEL = 'hall.Hall'
 

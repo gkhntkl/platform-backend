@@ -37,10 +37,10 @@ def create_auth_token(sender, instance=None, created=False, **kwargs):
         phoneNumber = "+90" + instance.phone
         hall = instance.hall
         city = instance.hall.city
-        message = "www.salonayir.com/"+str(instance.id)+" "+hall.name+" "+city.name+"/"+hall.district+" /n "+ "sad"
+        message = "http://18.218.147.80:3000/reservation/"+str(instance.id)
 
-        print(message)
-        #s3_client.publish(PhoneNumber=phoneNumber,Message=message)
+       # print(message)
+       # s3_client.publish(PhoneNumber=phoneNumber,Message=message)
 
 
 

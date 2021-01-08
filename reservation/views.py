@@ -17,6 +17,7 @@ class ReservationDetailAPIView(APIView):
             raise Http404
 
     def get(self,request,id):
+        print(1)
         reservation = self.get_reservation(id)
         if isinstance(reservation,Reservation):
             serializer = ReservationSerializer(reservation)
@@ -51,12 +52,13 @@ class ReservationUpdateAPIView(APIView):
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(status=status.HTTP_401_UNAUTHORIZED)
 
-class ReservationAPIView(APIView):
+class ReservationCreateAPIView(APIView):
 
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
+        print(2)
         serializer = ReservationSerializer(data=request.data)
         if serializer.is_valid():
             reservation = serializer.save()
@@ -77,6 +79,7 @@ class ReservationHallDetailAPIView(APIView):
             raise Http404
 
     def get(self,request,id):
+   
         reservation = self.get_hall_reservation(id,request.user)
         serializer = ReservationSerializer(reservation,many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
