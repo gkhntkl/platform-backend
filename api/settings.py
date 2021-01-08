@@ -12,9 +12,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = ')vo$dy^%t#dx!nv(nwy*)(*x9cb26cbnfa#vvj0!(drari-01t'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-ALLOWED_HOSTS = ['13.59.116.220']
+ALLOWED_HOSTS = ['127.0.0.1','localhost']
 
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
@@ -37,7 +37,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'rest_framework.authtoken',
-    'djcelery',
+    'django_crontab',
 
     'hall',
     'user',
@@ -96,7 +96,13 @@ DATABASES = {
         'PASSWORD':'1221',
     }
 }
-
+'''
+0 0 utc+3 icin bilgisayar loca timeina gore calisir.AWS de date +'%z %Z' konsolda bunu yazarak timezone ogren 
+'''
+CRONJOBS = [
+    ('*/1 * * * *', 'reservation.cron.update_reservation'),
+    ('5 10 * * *', 'slot.cron.update_slot'),
+]
 
 # Password validation
 # https://docs.djangoproject.com/en/3.1/ref/settings/#auth-password-validators
@@ -147,6 +153,7 @@ REST_FRAMEWORK = {
     )
 }
 MEDIA_URL = '/images/'
+STATIC_URL = '/static/'
 
 # Path where media is stored
 MEDIA_ROOT = os.path.join(BASE_DIR,'build/static/images')

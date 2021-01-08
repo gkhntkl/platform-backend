@@ -28,6 +28,7 @@ class Reservation(models.Model):
     phone = models.TextField(max_length=10)
     hall = models.ForeignKey(Hall, on_delete=models.PROTECT, related_name="hall")
     date = models.DateTimeField()
+    expired = models.BooleanField(default=False)
 
 
 

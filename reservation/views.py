@@ -74,7 +74,7 @@ class ReservationHallDetailAPIView(APIView):
 
     def get_hall_reservation(self,id,user):
         try:
-            return Reservation.objects.filter(hall_id=id,hall__user=user).order_by('date')
+            return Reservation.objects.filter(hall_id=id,hall__user=user,expired=False).order_by('date')
         except Reservation.DoesNotExist:
             raise Http404
 
