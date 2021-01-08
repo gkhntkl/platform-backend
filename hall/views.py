@@ -62,6 +62,7 @@ class HallCreateAPIView(APIView):
             FILE_PATH = 'images/' + str(hall.id) + '/'
 
             for image in images:
+
                 hall_image = HallImage()
                 hall.photo_number = hall.photo_number + 1
                 new_image = request.FILES[image]
@@ -76,6 +77,7 @@ class HallCreateAPIView(APIView):
                     factor2 = width / 1000
 
                 factor = max(factor1, factor2, factor)
+
                 if not (factor == 0):
                     size = (int(width / factor), int(height / factor))
                     pil_image_obj = pil_image_obj.resize(size, Image.ANTIALIAS)

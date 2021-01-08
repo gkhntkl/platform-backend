@@ -101,7 +101,7 @@ DATABASES = {
 '''
 CRONJOBS = [
     ('*/1 * * * *', 'reservation.cron.update_reservation'),
-    ('5 10 * * *', 'slot.cron.update_slot'),
+    ('0 21 * * *', 'slot.cron.update_slot'),
 ]
 
 # Password validation

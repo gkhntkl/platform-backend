@@ -22,13 +22,15 @@ urlpatterns = [
 def createDateTable():
     today = datetime.date.today()
     i = today
-    while i  != datetime.date(today.year + 5, today.month, today.day):
+    count = 1
+    while count != 1850:
         day = i
         slot = Slot.objects.filter(day=day)
         if not slot:
             Slot.objects.create(day=day)
 
         i = i + datetime.timedelta(days=1)
+        count = count + 1
 
 createDateTable()
 

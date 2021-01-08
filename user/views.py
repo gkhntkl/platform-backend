@@ -26,7 +26,7 @@ from django.core.files.base import ContentFile
 import boto3
 from boto3.s3.transfer import TransferConfig
 
-
+from multiprocessing import Process
 
 class UserListAPIView(APIView):
 
@@ -168,6 +168,7 @@ class UserHallAPIView(APIView):
         return hall
 
 
+
     def put(self,request,id):
         data = json.loads(request.data['data'])
         data['name2'] = unidecode(data['name'])
@@ -222,8 +223,9 @@ class UserHallAPIView(APIView):
                     S3_BUCKET = settings.AWS_STORAGE_BUCKET_NAME
                     FILE_PATH = 'images/'+str(hall.id)+'/'
 
-
+                    print("entered")
                     for image in images:
+                        print("before read")
                         hall_image = HallImage()
                         new_image = request.FILES[image]
                         pil_image_obj = Image.open(new_image)
@@ -237,6 +239,7 @@ class UserHallAPIView(APIView):
                             factor2 = width/1000
 
                         factor = max(factor1,factor2,factor)
+                        print("before resize")
                         if not (factor == 0):
                             size = (int(width / factor), int(height / factor))
                             pil_image_obj = pil_image_obj.resize(size, Image.ANTIALIAS)
@@ -252,7 +255,7 @@ class UserHallAPIView(APIView):
 
                         config = TransferConfig( max_concurrency=20,
                                                 use_threads=True)
-
+                        print("before upload")
                         s3_client.upload_fileobj(new_image_io, S3_BUCKET, key,
                                                  ExtraArgs={'ACL': 'public-read', 'ContentType': 'image/jpeg'},
                                                  Config=config,
