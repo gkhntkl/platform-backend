@@ -2,8 +2,10 @@ from .models import Slot
 from datetime import datetime
 
 def update_slot():
-    now = datetime.now()
-    deleted_slot = Slot.objects.filter(day__lte=now).first()
-    deleted_slot.delete()
-    new_slot = datetime.date(now.year + 5, now.month, now.day)
-    Slot.objects.create(day=new_slot)
+    today = datetime.today()
+    slots = Slot.objects.filter(day__lt=today)
+    for deleted_slot in slots:
+        deleted_slot.delete()
+    day = datetime.date.today() +  datetime.timedelta(days=1851)
+    Slot.objects.create(day=day)
+    

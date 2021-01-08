@@ -12,9 +12,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = ')vo$dy^%t#dx!nv(nwy*)(*x9cb26cbnfa#vvj0!(drari-01t'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
-ALLOWED_HOSTS = ['127.0.0.1','localhost']
+ALLOWED_HOSTS = ['18.219.246.51']
 
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
@@ -101,7 +101,7 @@ DATABASES = {
 '''
 CRONJOBS = [
     ('*/1 * * * *', 'reservation.cron.update_reservation'),
-    ('5 10 * * *', 'slot.cron.update_slot'),
+    ('0 21 * * *', 'slot.cron.update_slot'),
 ]
 
 # Password validation
