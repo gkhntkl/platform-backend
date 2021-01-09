@@ -21,12 +21,11 @@ import json
 from boto3.session import Session
 from io import BytesIO
 from PIL import Image
+
 from django.core.files.base import ContentFile
-
-import boto3
+from django.conf import settings
+import threading
 from boto3.s3.transfer import TransferConfig
-
-from multiprocessing import Process
 
 class UserListAPIView(APIView):
 
@@ -167,7 +166,48 @@ class UserHallAPIView(APIView):
             return Response(response, status.HTTP_401_UNAUTHORIZED)
         return hall
 
+    def upload(self,myfile,hall,i):
 
+        hall_image = HallImage()
+        pil_image_obj = Image.open(myfile).convert('RGB')
+        (width, height) = pil_image_obj.size
+        factor = 0
+        factor1 = 0
+        factor2 = 0
+        if width > 2500:
+            factor1 = width / 2500
+        if height > 2000:
+            factor2 = width / 2000
+
+        factor = max(factor1, factor2, factor)
+        if not (factor == 0):
+            size = (int(width / factor), int(height / factor))
+            pil_image_obj = pil_image_obj.resize(size, Image.ANTIALIAS)
+
+
+        new_image_io = BytesIO()
+        hall_image.hall = hall
+        pil_image_obj.save(new_image_io, "JPEG")
+        key = 'images/'+str(hall.id)+'/' + "image" + str(i)
+        new_image_io.seek(0)
+
+        session = Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                          aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
+
+
+        s3_client = session.client('s3')
+        S3_BUCKET = settings.AWS_STORAGE_BUCKET_NAME
+
+        config = TransferConfig(max_concurrency=20,
+                                use_threads=True)
+
+        s3_client.upload_fileobj(new_image_io, S3_BUCKET, key,
+                                 ExtraArgs={'ACL': 'public-read', 'ContentType': 'image/jpeg'},
+                                 Config=config,
+                                 )
+
+        hall_image.name = "image" + str(i)
+        hall_image.save()
 
     def put(self,request,id):
         data = json.loads(request.data['data'])
@@ -217,53 +257,16 @@ class UserHallAPIView(APIView):
                     images = iter(request.data)
                     next(images)
                     i = data['photo_number'] + 1
-
-                    s3_client = session.client('s3')
-
-                    S3_BUCKET = settings.AWS_STORAGE_BUCKET_NAME
-                    FILE_PATH = 'images/'+str(hall.id)+'/'
-
-                    print("entered")
+                    threads = []
                     for image in images:
-                        print("before read")
-                        hall_image = HallImage()
-                        new_image = request.FILES[image]
-                        pil_image_obj = Image.open(new_image)
-                        (width, height) = pil_image_obj.size
-                        factor = 0
-                        factor1 = 0
-                        factor2 = 0
-                        if width > 1500:
-                            factor1 = width/1500
-                        if height > 1000:
-                            factor2 = width/1000
 
-                        factor = max(factor1,factor2,factor)
-                        print("before resize")
-                        if not (factor == 0):
-                            size = (int(width / factor), int(height / factor))
-                            pil_image_obj = pil_image_obj.resize(size, Image.ANTIALIAS)
+                        t = threading.Thread(target=self.upload, args=(ContentFile(request.FILES[image].read()),hall,i,))
+                        threads.append(t)
+                        t.start()
+                        i = i+1
+                    for t in threads:
+                        t.join()
 
-                        new_image_io = BytesIO()
-                        hall_image.hall = hall
-
-                        pil_image_obj.save(new_image_io, "JPEG")
-
-
-                        key = FILE_PATH + "image" + str(i)
-                        new_image_io.seek(0)
-
-                        config = TransferConfig( max_concurrency=20,
-                                                use_threads=True)
-                        print("before upload")
-                        s3_client.upload_fileobj(new_image_io, S3_BUCKET, key,
-                                                 ExtraArgs={'ACL': 'public-read', 'ContentType': 'image/jpeg'},
-                                                 Config=config,
-                                                 )
-
-                        hall_image.name = "image"+str(i)
-                        hall_image.save()
-                        i = i + 1
                     return Response(serializer.data, status.HTTP_200_OK)
 
                 response = {"message": "Inputs wrong"}
@@ -283,5 +286,4 @@ class UserHallAPIView(APIView):
             response = {"message": "Unauthorized"}
             return Response(response, status.HTTP_401_UNAUTHORIZED)
         return hall
-
 

@@ -31,10 +31,7 @@ def createDateTable():
 
         i = i + datetime.timedelta(days=1)
         count = count + 1
-<<<<<<< HEAD
 
-=======
->>>>>>> 4fb1266e72c53cf3840a2db6eaa577d2189bcabe
 createDateTable()
 
 cities = {
