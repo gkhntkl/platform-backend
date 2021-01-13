@@ -13,7 +13,7 @@ from slot.models import Slot
 from city.models import City
 from hall.serializers import HallSerializer
 from .serializers import UserSerializer
-
+import uuid
 from unidecode import unidecode
 from api import settings
 import json
@@ -199,7 +199,7 @@ class UserHallAPIView(APIView):
                     obj = []
                     if data['deletedImages'] != []:
                         for image in data['deletedImages']:
-                            obj.append({'Key':'images/'+str(hall.id)+'/'+image})
+                            obj.append({'Key':'images/'+str(hall.id)+'/'+image + "/image"})
 
                         response = my_bucket.delete_objects(
                             Delete={
@@ -218,7 +218,8 @@ class UserHallAPIView(APIView):
                     for image in images:
 
                         try:
-                            s3_object_name = FILE_PATH + "image" + str(i)
+                            name = uuid.uuid4()
+                            s3_object_name = FILE_PATH + str(name) + "/" + "image"
                             response = s3_client.generate_presigned_post(
                                 Bucket=settings.AWS_STORAGE_BUCKET_NAME,
                                 Key=s3_object_name,
@@ -227,7 +228,7 @@ class UserHallAPIView(APIView):
                             responses.append(response)
                             hall_image = HallImage()
                             hall_image.hall = hall
-                            hall_image.name =  "image" + str(i)
+                            hall_image.name =  str(name)
                             hall_image.save()
                         except ClientError as e:
 

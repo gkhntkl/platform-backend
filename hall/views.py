@@ -60,12 +60,14 @@ class HallCreateAPIView(APIView):
 
             for image in images:
 
-                hall_image = HallImage()
-                hall.photo_number = hall.photo_number + 1
-                hall_image.hall = hall
-
                 try:
-                    s3_object_name = FILE_PATH + "image" + str(i)
+                    name = uuid.uuid4()
+                    hall_image = HallImage()
+                    hall.photo_number = hall.photo_number + 1
+                    hall_image.hall = hall
+                    hall_image.name = name
+                    hall_image.save()
+                    s3_object_name = FILE_PATH + str(name) + "/" + "image"
                     response = s3_client.generate_presigned_post(
                         Bucket=settings.AWS_STORAGE_BUCKET_NAME,
                         Key=s3_object_name,
@@ -76,11 +78,6 @@ class HallCreateAPIView(APIView):
                     logging.error(e)
                     return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-                hall_image.name = "image"+str(i)
-                hall_image.save()
-                i = i + 1
-
-            hall.photo_number = i
             hall.save()
             return Response(responses, status=status.HTTP_201_CREATED)
 

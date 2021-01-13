@@ -111,7 +111,7 @@ def upload_path_handler(instance, filename):
 class HallImage(models.Model):
     hall = models.ForeignKey(Hall, related_name='images',on_delete=models.CASCADE)
     image = models.ImageField(upload_to=upload_path_handler,blank=True)
-    name = models.CharField(max_length=30,default="")
+    name = models.CharField(max_length=50,default="")
 
     def __str__(self):
         return self.name

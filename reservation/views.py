@@ -140,7 +140,7 @@ class ReservationPhotosAPIView(APIView):
 
                 try:
                     name = uuid.uuid4()
-                    s3_object_name = "photos" + "/"  + str(id) + "/" + str(name)
+                    s3_object_name = "photos" + "/"  + str(id) + "/" + str(name) + "/" + "image"
                     response = s3_client.generate_presigned_post(
                         Bucket=settings.AWS_STORAGE_BUCKET_NAME,
                         Key=s3_object_name,
