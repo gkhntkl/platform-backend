@@ -3,8 +3,10 @@ from .models import Reservation
 
 from hall.serializers import HallSerializer
 
+
 class ReservationSerializer(serializers.ModelSerializer):
 
+    images = serializers.StringRelatedField(read_only=True, many=True)
     class Meta:
         model = Reservation
         fields = '__all__'

@@ -76,7 +76,7 @@ class Hall(models.Model):
     address = models.TextField(default="No Address")
     lat = models.DecimalField(blank=True, null=True, max_digits=18, decimal_places=15)
     lng = models.DecimalField(blank=True, null=True, max_digits=18, decimal_places=15)
-    user = models.ForeignKey(User,on_delete=models.CASCADE,blank=False,default=1,related_name="halls")
+    user = models.ForeignKey(User,on_delete=models.CASCADE,blank=False,default=25,related_name="halls")
     open_capacity = models.IntegerField(blank=False)
     close_capacity = models.IntegerField(blank=False)
     child_park_type = models.PositiveSmallIntegerField(choices=CHILD_PARK_TYPES, default=1)

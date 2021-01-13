@@ -19,13 +19,9 @@ from api import settings
 import json
 
 from boto3.session import Session
-from io import BytesIO
-from PIL import Image
 
-from django.core.files.base import ContentFile
 from django.conf import settings
-import threading
-from boto3.s3.transfer import TransferConfig
+from botocore.exceptions import ClientError
 
 class UserListAPIView(APIView):
 
@@ -166,48 +162,7 @@ class UserHallAPIView(APIView):
             return Response(response, status.HTTP_401_UNAUTHORIZED)
         return hall
 
-    def upload(self,myfile,hall,i):
 
-        hall_image = HallImage()
-        pil_image_obj = Image.open(myfile).convert('RGB')
-        (width, height) = pil_image_obj.size
-        factor = 0
-        factor1 = 0
-        factor2 = 0
-        if width > 2500:
-            factor1 = width / 2500
-        if height > 2000:
-            factor2 = width / 2000
-
-        factor = max(factor1, factor2, factor)
-        if not (factor == 0):
-            size = (int(width / factor), int(height / factor))
-            pil_image_obj = pil_image_obj.resize(size, Image.ANTIALIAS)
-
-
-        new_image_io = BytesIO()
-        hall_image.hall = hall
-        pil_image_obj.save(new_image_io, "JPEG")
-        key = 'images/'+str(hall.id)+'/' + "image" + str(i)
-        new_image_io.seek(0)
-
-        session = Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                          aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
-
-
-        s3_client = session.client('s3')
-        S3_BUCKET = settings.AWS_STORAGE_BUCKET_NAME
-
-        config = TransferConfig(max_concurrency=20,
-                                use_threads=True)
-
-        s3_client.upload_fileobj(new_image_io, S3_BUCKET, key,
-                                 ExtraArgs={'ACL': 'public-read', 'ContentType': 'image/jpeg'},
-                                 Config=config,
-                                 )
-
-        hall_image.name = "image" + str(i)
-        hall_image.save()
 
     def put(self,request,id):
         data = json.loads(request.data['data'])
@@ -239,7 +194,7 @@ class UserHallAPIView(APIView):
 
 
                     s3_resource = session.resource('s3')
-                    my_bucket = s3_resource.Bucket("my-wedding-hall-project")
+                    my_bucket = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
 
                     obj = []
                     if data['deletedImages'] != []:
@@ -257,17 +212,28 @@ class UserHallAPIView(APIView):
                     images = iter(request.data)
                     next(images)
                     i = data['photo_number'] + 1
-                    threads = []
+                    responses = []
+                    s3_client = session.client('s3')
+                    FILE_PATH = 'images/' + str(hall.id) + '/'
                     for image in images:
 
-                        t = threading.Thread(target=self.upload, args=(ContentFile(request.FILES[image].read()),hall,i,))
-                        threads.append(t)
-                        t.start()
-                        i = i+1
-                    for t in threads:
-                        t.join()
+                        try:
+                            s3_object_name = FILE_PATH + "image" + str(i)
+                            response = s3_client.generate_presigned_post(
+                                Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+                                Key=s3_object_name,
+                                ExpiresIn=3600
+                            )
+                            responses.append(response)
+                            hall_image = HallImage()
+                            hall_image.hall = hall
+                            hall_image.name =  "image" + str(i)
+                            hall_image.save()
+                        except ClientError as e:
 
-                    return Response(serializer.data, status.HTTP_200_OK)
+                            return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+                    return Response(responses, status.HTTP_200_OK)
 
                 response = {"message": "Inputs wrong"}
                 return Response(response, status=status.HTTP_400_BAD_REQUEST)

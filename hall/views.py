@@ -10,14 +10,13 @@ from rest_framework.authentication import TokenAuthentication
 from django.db.models import Q
 import json
 from unidecode import unidecode
-from io import BytesIO
-from PIL import Image
-from django.core.files.base import ContentFile
+import logging
+import uuid
+from botocore.exceptions import ClientError
 from api import settings
 
 
 from boto3.session import Session
-from boto3.s3.transfer import TransferConfig
 
 
 class HallListAPIView(APIView):
@@ -48,61 +47,42 @@ class HallCreateAPIView(APIView):
             hall = serializer.save()
             hall.user = request.user
 
-
             images = iter(request.data)
             next(images)
             i = 0
-
             session = Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                               aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
 
             s3_client = session.client('s3')
 
-            S3_BUCKET = settings.AWS_STORAGE_BUCKET_NAME
             FILE_PATH = 'images/' + str(hall.id) + '/'
+            responses = []
 
             for image in images:
 
                 hall_image = HallImage()
                 hall.photo_number = hall.photo_number + 1
-                new_image = request.FILES[image]
-                pil_image_obj = Image.open(new_image)
-                (width, height) = pil_image_obj.size
-                factor = 0
-                factor1 = 0
-                factor2 = 0
-                if width > 1500:
-                    factor1 = width / 1500
-                if height > 1000:
-                    factor2 = width / 1000
-
-                factor = max(factor1, factor2, factor)
-
-                if not (factor == 0):
-                    size = (int(width / factor), int(height / factor))
-                    pil_image_obj = pil_image_obj.resize(size, Image.ANTIALIAS)
-
-                new_image_io = BytesIO()
                 hall_image.hall = hall
-                pil_image_obj.save(new_image_io, format='JPEG')
-                key = FILE_PATH + "image" + str(i)
-                new_image_io.seek(0)
 
-                config = TransferConfig(max_concurrency=20,
-                                        use_threads=True,
-                                        )
-
-                s3_client.upload_fileobj(new_image_io, S3_BUCKET, key,
-                                         ExtraArgs={'ACL': 'public-read', 'ContentType': 'image/jpeg'},
-                                         Config=config,
-                                         )
+                try:
+                    s3_object_name = FILE_PATH + "image" + str(i)
+                    response = s3_client.generate_presigned_post(
+                        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+                        Key=s3_object_name,
+                        ExpiresIn=3600
+                    )
+                    responses.append(response)
+                except ClientError as e:
+                    logging.error(e)
+                    return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
                 hall_image.name = "image"+str(i)
                 hall_image.save()
                 i = i + 1
+
             hall.photo_number = i
             hall.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response(responses, status=status.HTTP_201_CREATED)
 
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

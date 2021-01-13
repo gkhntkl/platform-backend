@@ -32,6 +32,14 @@ class Reservation(models.Model):
 
 
 
+
+class ReservationImage(models.Model):
+    reservation = models.ForeignKey(Reservation, related_name='images',on_delete=models.CASCADE)
+    name = models.SlugField()
+
+    def __str__(self):
+        return self.name
+
 @receiver(post_save, sender=Reservation)
 def create_auth_token(sender, instance=None, created=False, **kwargs):
     if created:

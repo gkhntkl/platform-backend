@@ -12,7 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = ')vo$dy^%t#dx!nv(nwy*)(*x9cb26cbnfa#vvj0!(drari-01t'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['127.0.0.1']
 
@@ -91,7 +91,7 @@ WSGI_APPLICATION = 'api.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'wedding',
+        'NAME': 'wedding2',
         'USER': 'gakko',
         'PASSWORD':'1221',
     }
@@ -159,11 +159,11 @@ STATIC_URL = '/static/'
 MEDIA_ROOT = os.path.join(BASE_DIR,'build/static/images')
 
 
-AWS_ACCESS_KEY_ID = 'AKIAVGK4LKIZMX2XIFYY'
-AWS_SECRET_ACCESS_KEY = '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'
+AWS_ACCESS_KEY_ID = 'AKIAVGK4LKIZG4NCGCXM'
+AWS_SECRET_ACCESS_KEY = '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'
 AWS_STORAGE_BUCKET_NAME = 'my-wedding-hall-project'
 
 AWS_S3_FILE_OVERWRITE = False
 AWS_DEFAULT_ACL = None
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+#DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
 #STATICFILES_STORAGE = 'storages.backends.s3boto3.S3StaticStorage'
