@@ -7,12 +7,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
 from django.http import Http404
 import uuid
-
+import json
 from django.conf import settings
 from boto3.session import Session
 
 import logging
-import boto3
+
 from botocore.exceptions import ClientError
 
 
@@ -45,13 +45,21 @@ class ReservationUpdateAPIView(APIView):
 
     def put(self, request, id):
         reservation = self.get_reservation(id)
-        serializer = ReservationSerializer(data=request.data, partial=True)
-        if serializer.is_valid():
-            if (request.user.id == reservation.hall.user.id):
-                reservation = serializer.update(reservation, serializer.validated_data)
-                return Response(serializer.data, status=status.HTTP_200_OK)
-            return Response(status=status.HTTP_401_UNAUTHORIZED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        if (request.user.id == reservation.hall.user.id):
+            if request.data['hall'] != reservation.hall.id:
+                pass
+            else:
+                reservation.service_type = request.data['service_type']
+                reservation.name1 = request.data['name1']
+                reservation.name2 = request.data['name2']
+                reservation.phone = request.data['phone']
+                reservation.date = request.data['date']
+                reservation.save()
+
+            return Response(status=status.HTTP_200_OK)
+        return Response(status=status.HTTP_401_UNAUTHORIZED)
+
 
     def delete(self, request, id):
         reservation = self.get_reservation(id)
@@ -66,7 +74,7 @@ class ReservationCreateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
-        print(2)
+
         serializer = ReservationSerializer(data=request.data)
         if serializer.is_valid():
             reservation = serializer.save()
@@ -125,22 +133,37 @@ class ReservationPhotosAPIView(APIView):
 
     def post(self, request, id):
         reservation = self.get_reservation(id)
-
+        data = json.loads(request.data['data'])
         if (request.user.id == reservation.hall.user.id):
 
             session = Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                               aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
 
             s3_client = session.client('s3')
+            s3_resource = session.resource('s3')
+            my_bucket = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
+            obj = []
+            if data['deletedImages'] != []:
+                for image in data['deletedImages']:
+                    obj.append({'Key': 'images/' + str(reservation.id) + '/' + image + "/image.jpg"})
 
-            images = request.data
+                response = my_bucket.delete_objects(
+                    Delete={
+                        'Objects': obj,
+                    }
+                )
+                images_to_delete = ReservationImage.objects.filter(reservation=reservation).filter(name__in=data['deletedImages'])
+                images_to_delete.delete()
+
+            images = iter(request.data)
+            next(images)
 
             responses = []
             for image in images:
 
                 try:
                     name = uuid.uuid4()
-                    s3_object_name = "photos" + "/"  + str(id) + "/" + str(name) + "/" + "image"
+                    s3_object_name = "photos" + "/"  + str(id) + "/" + str(name) + "/" + "image.jpg"
                     response = s3_client.generate_presigned_post(
                         Bucket=settings.AWS_STORAGE_BUCKET_NAME,
                         Key=s3_object_name,

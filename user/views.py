@@ -219,7 +219,7 @@ class UserHallAPIView(APIView):
 
                         try:
                             name = uuid.uuid4()
-                            s3_object_name = FILE_PATH + str(name) + "/" + "image"
+                            s3_object_name = FILE_PATH + str(name) + "/" + "image.jpg"
                             response = s3_client.generate_presigned_post(
                                 Bucket=settings.AWS_STORAGE_BUCKET_NAME,
                                 Key=s3_object_name,
@@ -247,9 +247,14 @@ class UserHallAPIView(APIView):
         hall = self.get_hall(id)
         if isinstance(hall, Hall):
             if hall.user.id == request.user.id:
-                hall.delete()
-                response = {"message": "Hall deleted succesfully"}
-                return Response(response, status=status.HTTP_204_NO_CONTENT)
+                try:
+                    hall.delete()
+                    response = {"message": "Hall deleted succesfully"}
+                    return Response(response, status=status.HTTP_204_NO_CONTENT)
+                except:
+                    response = {"message": "Unauthorized"}
+                    return Response(response, status.HTTP_401_UNAUTHORIZED)
+
             response = {"message": "Unauthorized"}
             return Response(response, status.HTTP_401_UNAUTHORIZED)
         return hall

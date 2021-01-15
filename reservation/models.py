@@ -33,6 +33,8 @@ class Reservation(models.Model):
 
 
 
+
+
 class ReservationImage(models.Model):
     reservation = models.ForeignKey(Reservation, related_name='images',on_delete=models.CASCADE)
     name = models.SlugField()

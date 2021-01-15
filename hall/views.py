@@ -67,7 +67,7 @@ class HallCreateAPIView(APIView):
                     hall_image.hall = hall
                     hall_image.name = name
                     hall_image.save()
-                    s3_object_name = FILE_PATH + str(name) + "/" + "image"
+                    s3_object_name = FILE_PATH + str(name) + "/" + "image.jpg"
                     response = s3_client.generate_presigned_post(
                         Bucket=settings.AWS_STORAGE_BUCKET_NAME,
                         Key=s3_object_name,
