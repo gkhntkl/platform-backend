@@ -51,8 +51,11 @@ class SlotSearchAPIView(APIView):
                     halls_district = halls.filter(district__contains=district)
                     if halls_district:
                         return Slot.objects.filter(day__in=days).exclude(~Q(reduce(operator.and_, (Q(halls=x) for x in halls_district))))
-                    return 
+                    return -1
                 return Slot.objects.filter(day__in=days).exclude(~Q(reduce(operator.and_, (Q(halls=x) for x in halls))))
+            else:
+               return -1
+
         except Hall.DoesNotExist:
             return Response(status=status.HTTP_404_NOT_FOUND)
 
@@ -60,9 +63,11 @@ class SlotSearchAPIView(APIView):
         data = request.data
 
         slots = self.get_slots(data['number'],data['days'],data['district'])
-        serializer = SlotSerializer(slots,many=True)
-        return Response(serializer.data)
+        if(slots != -1):
+            serializer = SlotSerializer(slots,many=True)
+            return Response(serializer.data,status=status.HTTP_200_OK)
 
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 
