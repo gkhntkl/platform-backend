@@ -1,5 +1,8 @@
 from rest_framework.views import APIView
 from .models import Reservation,ReservationImage
+from portion.models import Portion
+from slot.models import Slot
+from hall.models import Hall
 from .serializers import ReservationSerializer
 from rest_framework.response import Response
 from rest_framework import status
@@ -10,6 +13,7 @@ import uuid
 import json
 from django.conf import settings
 from boto3.session import Session
+from django.db import transaction
 
 import logging
 
@@ -43,6 +47,16 @@ class ReservationUpdateAPIView(APIView):
         except Reservation.DoesNotExist:
             raise Http404
 
+    @transaction.atomic
+    def createPortion(self,portion,hall,slot):
+        for portion in portion:
+            Portion.objects.create(hall_id=hall,slot_id=slot[0:10],spot=portion[0],wedding_count=portion[1])
+
+    def deletePortion(self,portion,hall,slot):
+        for portion in portion:
+            Portion.objects.filter(hall_id=hall,slot_id=slot,spot=portion[0],wedding_count=portion[1]).delete()
+
+
     def put(self, request, id):
         reservation = self.get_reservation(id)
 
@@ -50,13 +64,35 @@ class ReservationUpdateAPIView(APIView):
             if request.data['hall'] != reservation.hall.id:
                 pass
             else:
+
+                if len(request.data['portion']) == 0:
+
+                    if (request.data['close']):
+                        s = Slot.objects.filter(pk=request.data['date'][0:10]).first()
+                        if s:
+                            s.halls.add(request.data['hall'])
+
+
+                else:
+                    self.deletePortion(request.data['reservedPortion'], request.data['hall'], reservation.date)
+                    self.createPortion(request.data['portion'], request.data['hall'], request.data['date'])
+                    reservation.portion = request.data['portion']
+                    if (not request.data['is_available']):
+                        s = Slot.objects.filter(pk=request.data['date'][0:10]).first()
+                        if s:
+                            s.halls.add(request.data['hall'])
+                    else:
+                        if (request.data['close']):
+                            s = Slot.objects.filter(pk=request.data['date'][0:10]).first()
+                            if s:
+                                s.halls.add(request.data['hall'])
                 reservation.service_type = request.data['service_type']
                 reservation.name1 = request.data['name1']
                 reservation.name2 = request.data['name2']
                 reservation.phone = request.data['phone']
                 reservation.date = request.data['date']
-                reservation.save()
 
+                reservation.save()
             return Response(status=status.HTTP_200_OK)
         return Response(status=status.HTTP_401_UNAUTHORIZED)
 
@@ -64,6 +100,10 @@ class ReservationUpdateAPIView(APIView):
     def delete(self, request, id):
         reservation = self.get_reservation(id)
         if (request.user.id == reservation.hall.user.id):
+            self.deletePortion(reservation.portion, reservation.hall, reservation.date)
+            s = Slot.objects.filter(pk=reservation.date).first()
+            if s:
+                s.halls.remove(reservation.hall)
             reservation.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(status=status.HTTP_401_UNAUTHORIZED)
@@ -73,14 +113,40 @@ class ReservationCreateAPIView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
+    @transaction.atomic
+    def createPortion(self,portion,hall,slot):
+        for portion in portion:
+
+            Portion.objects.create(hall_id=hall,slot_id=slot[0:10],spot=portion[0],wedding_count=portion[1])
+
+
     def post(self, request, *args, **kwargs):
 
-        serializer = ReservationSerializer(data=request.data)
-        if serializer.is_valid():
-            reservation = serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        if len(request.data['portion']) == 0:
+            if (request.data['close']):
+                s = Slot.objects.filter(pk=request.data['date'][0:10]).first()
+                if s:
+                    s.halls.add(request.data['hall'])
+            return Response(status=status.HTTP_201_CREATED)
 
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            serializer = ReservationSerializer(data=request.data, partial=True)
+            if serializer.is_valid():
+                self.createPortion(request.data['portion'], request.data['hall'], request.data['date'])
+                reservation = serializer.save()
+                if (not request.data['is_available']):
+                    s = Slot.objects.filter(pk=request.data['date'][0:10]).first()
+                    if s:
+                        s.halls.add(request.data['hall'])
+                else:
+                    if (request.data['close']):
+                        s = Slot.objects.filter(pk=request.data['date'][0:10]).first()
+                        if s:
+                            s.halls.add(request.data['hall'])
+
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class ReservationHallDetailAPIView(APIView):

@@ -3,7 +3,10 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import Hall,HallImage
 from city.models import City
+from slot.models import Slot
+from portion.models import Portion
 from .serializers import HallSerializer
+from django.db import transaction
 
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authentication import TokenAuthentication
@@ -33,8 +36,16 @@ class HallCreateAPIView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
 
+    @transaction.atomic
+    def createPortion(self,hall,portions):
+        slots = Slot.objects.all()
+        for portion in portions:
+            for slot in slots:
+                Portion.objects.create(hall=hall,slot=slot,spot=portion)
     def post(self, request):
+
         data = json.loads(request.data['data'])
+
         data['name2'] = unidecode(data['name'])
         data['city_name'] = unidecode(City.objects.filter(id=data['city']).first().name)
         if data['phone'] == "":
@@ -49,7 +60,7 @@ class HallCreateAPIView(APIView):
 
             images = iter(request.data)
             next(images)
-            i = 0
+
             session = Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                               aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
 

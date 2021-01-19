@@ -14,6 +14,7 @@ urlpatterns = [
     path('api/user/', include('user.urls')),
     path('api/slot/', include('slot.urls')),
     path('api/reservation/', include('reservation.urls')),
+    path('api/portion/', include('portion.urls')),
     ]
 
 

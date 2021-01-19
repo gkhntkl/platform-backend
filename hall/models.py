@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models.signals import post_save
+from django.contrib.postgres.fields import ArrayField
 from django.db.models.signals import post_save, pre_save
 
 
@@ -88,8 +88,6 @@ class Hall(models.Model):
     photograpy_type = models.PositiveSmallIntegerField(choices=PHOTOGRAPHY_TYPES, default=1)
     parking_type = models.PositiveSmallIntegerField(choices=PARKING_TYPES, default=1)
     vale_type = models.PositiveSmallIntegerField(choices=VALE_TYPES, default=1)
-    opening_time = models.CharField(max_length=10,default="00:00")
-    closing_time = models.CharField(max_length=10,default="00:00")
     wheelchair_type = models.PositiveSmallIntegerField(choices=WHEELCHAIR_TYPES, default=1)
     praying_type = models.PositiveSmallIntegerField(choices=PRAYING_TYPES, default=1)
     service_type1 = models.PositiveSmallIntegerField(choices=SERVICE_TYPES, default=0)
@@ -100,6 +98,8 @@ class Hall(models.Model):
     service_type6 = models.PositiveSmallIntegerField(choices=SERVICE_TYPES, default=0)
     profile_choice = models.SmallIntegerField(default=0)
     photo_number = models.SmallIntegerField(default=0)
+    portion = ArrayField(size=24,base_field=models.SmallIntegerField(),default=[])
+    wedding_count = models.SmallIntegerField(default=1)
 
 
 _UNSAVED_IMAGEFIELD = 'unsaved_imagefield'

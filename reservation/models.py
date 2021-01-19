@@ -5,6 +5,7 @@ from boto3.session import Session
 from api import settings
 from django.db import models
 from hall.models import Hall
+from django.contrib.postgres.fields import ArrayField
 
 session = Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                           aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
@@ -29,6 +30,8 @@ class Reservation(models.Model):
     hall = models.ForeignKey(Hall, on_delete=models.PROTECT, related_name="hall")
     date = models.DateTimeField()
     expired = models.BooleanField(default=False)
+    portion = ArrayField(ArrayField(models.SmallIntegerField()))
+    wedding_count = models.PositiveSmallIntegerField(default=1)
 
 
 
