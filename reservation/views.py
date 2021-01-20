@@ -14,7 +14,7 @@ import json
 from django.conf import settings
 from boto3.session import Session
 from django.db import transaction
-
+from datetime import date,datetime,timedelta
 import logging
 
 from botocore.exceptions import ClientError
@@ -60,52 +60,68 @@ class ReservationUpdateAPIView(APIView):
     def put(self, request, id):
         reservation = self.get_reservation(id)
 
-        if (request.user.id == reservation.hall.user.id):
-            if request.data['hall'] != reservation.hall.id:
-                pass
-            else:
+        if(reservation.date.date() < date.today()):
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        else:
+            if (request.user.id == reservation.hall.user.id):
 
-                if len(request.data['portion']) == 0:
-
-                    if (request.data['close']):
-                        s = Slot.objects.filter(pk=request.data['date'][0:10]).first()
-                        if s:
-                            s.halls.add(request.data['hall'])
-
-
+                if request.data['hall'] != reservation.hall.id:
+                    return Response(status=status.HTTP_401_UNAUTHORIZED)
                 else:
-                    self.deletePortion(request.data['reservedPortion'], request.data['hall'], reservation.date)
-                    self.createPortion(request.data['portion'], request.data['hall'], request.data['date'])
-                    reservation.portion = request.data['portion']
-                    if (not request.data['is_available']):
-                        s = Slot.objects.filter(pk=request.data['date'][0:10]).first()
-                        if s:
-                            s.halls.add(request.data['hall'])
-                    else:
+
+                    if len(request.data['portion']) == 0:
                         if (request.data['close']):
                             s = Slot.objects.filter(pk=request.data['date'][0:10]).first()
                             if s:
                                 s.halls.add(request.data['hall'])
-                reservation.service_type = request.data['service_type']
-                reservation.name1 = request.data['name1']
-                reservation.name2 = request.data['name2']
-                reservation.phone = request.data['phone']
-                reservation.date = request.data['date']
 
-                reservation.save()
-            return Response(status=status.HTTP_200_OK)
-        return Response(status=status.HTTP_401_UNAUTHORIZED)
+                    else:
+                        self.deletePortion(request.data['reservedPortion'], request.data['hall'], reservation.date)
+                        self.createPortion(request.data['portion'], request.data['hall'], request.data['date'])
+                        reservation.portion = request.data['portion']
+                        if (not request.data['is_available']):
+                            if reservation.date.strftime('%Y-%m-%d') != request.data['date'][0:10]:
+                                s = Slot.objects.filter(pk=reservation.date).first()
+                                if s:
+                                    s.halls.remove(reservation.hall)
+
+                                s = Slot.objects.filter(pk=request.data['date'][0:10]).first()
+                                if s:
+                                    s.halls.add(request.data['hall'])
+                            else:
+                                s = Slot.objects.filter(pk=request.data['date'][0:10]).first()
+                                if s:
+                                    s.halls.add(request.data['hall'])
+                        else:
+                            s = Slot.objects.filter(pk=reservation.date).first()
+                            if s:
+                                s.halls.remove(reservation.hall)
+
+                    reservation.service_type = request.data['service_type']
+                    reservation.name1 = request.data['name1']
+                    reservation.name2 = request.data['name2']
+                    reservation.phone = request.data['phone']
+                    reservation.date = request.data['date']
+
+                    reservation.save()
+                return Response(status=status.HTTP_200_OK)
+
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
 
 
     def delete(self, request, id):
         reservation = self.get_reservation(id)
         if (request.user.id == reservation.hall.user.id):
-            self.deletePortion(reservation.portion, reservation.hall, reservation.date)
-            s = Slot.objects.filter(pk=reservation.date).first()
-            if s:
-                s.halls.remove(reservation.hall)
-            reservation.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
+            if (reservation.date.date()  < date.today()):
+                return Response(status=status.HTTP_401_UNAUTHORIZED)
+            else:
+                self.deletePortion(reservation.portion, reservation.hall, reservation.date)
+                s = Slot.objects.filter(pk=reservation.date).first()
+                if s:
+                    s.halls.remove(reservation.hall)
+                reservation.delete()
+                return Response(status=status.HTTP_204_NO_CONTENT)
+
         return Response(status=status.HTTP_401_UNAUTHORIZED)
 
 
@@ -195,61 +211,74 @@ class ReservationPhotosAPIView(APIView):
         serializer = ReservationSerializer(reservation)
         return Response(serializer.data,status=status)
 
-
-
     def post(self, request, id):
         reservation = self.get_reservation(id)
         data = json.loads(request.data['data'])
+
         if (request.user.id == reservation.hall.user.id):
 
-            session = Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                              aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
+            if reservation.date.date()+timedelta(days=60) < date.today():
+                return Response(status=status.HTTP_304_NOT_MODIFIED)
+            else:
 
-            s3_client = session.client('s3')
-            s3_resource = session.resource('s3')
-            my_bucket = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
-            obj = []
-            if data['deletedImages'] != []:
-                for image in data['deletedImages']:
-                    obj.append({'Key': 'images/' + str(reservation.id) + '/' + image + "/image.jpg"})
+                session = Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                                  aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
 
-                response = my_bucket.delete_objects(
-                    Delete={
-                        'Objects': obj,
-                    }
-                )
-                images_to_delete = ReservationImage.objects.filter(reservation=reservation).filter(name__in=data['deletedImages'])
-                images_to_delete.delete()
+                s3_client = session.client('s3')
+                s3_resource = session.resource('s3')
+                my_bucket = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
+                obj = []
+                if data['deletedImages'] != []:
+                    for image in data['deletedImages']:
+                        obj.append({'Key': 'images/' + str(reservation.id) + '/' + image + "/image.jpg"})
 
-            images = iter(request.data)
-            next(images)
-
-            responses = []
-            for image in images:
-
-                try:
-                    name = uuid.uuid4()
-                    s3_object_name = "photos" + "/"  + str(id) + "/" + str(name) + "/" + "image.jpg"
-                    response = s3_client.generate_presigned_post(
-                        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
-                        Key=s3_object_name,
-                        ExpiresIn=3600
+                    response = my_bucket.delete_objects(
+                        Delete={
+                            'Objects': obj,
+                        }
                     )
-                    responses.append(response)
-                    reservation_image = ReservationImage()
-                    reservation_image.name = name
-                    reservation_image.reservation = reservation
-                    reservation_image.save()
-                except ClientError as e:
-                    logging.error(e)
-                    return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
+                    images_to_delete = ReservationImage.objects.filter(reservation=reservation).filter(
+                        name__in=data['deletedImages'])
+                    images_to_delete.delete()
 
-            return Response(responses, status.HTTP_200_OK)
+                images = iter(request.data)
+                next(images)
+
+                responses = []
+                for image in images:
+
+                    try:
+                        name = uuid.uuid4()
+                        s3_object_name = "photos" + "/" + str(id) + "/" + str(name) + "/" + "image.jpg"
+                        response = s3_client.generate_presigned_post(
+                            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+                            Key=s3_object_name,
+                            ExpiresIn=3600
+                        )
+                        responses.append(response)
+                        reservation_image = ReservationImage()
+                        reservation_image.name = name
+                        reservation_image.reservation = reservation
+                        reservation_image.save()
+                    except ClientError as e:
+                        logging.error(e)
+                        return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+                if(data['smsChecked']):
+                    phoneNumber = "+90" + reservation.phone
+                    message = "Merhabalar,Aşağıdaki Linkten Ulaşabileceğiniz Albümünüz Güncellenmiştir.\nBizi Tercih Ettiğiniz için Teşekkür Ederiz.\n"+"http://18.218.147.80:3000/reservation/" + str(reservation.id)
+                    #s3_client = session.client('sns', 'us-east-2')
+                    #s3_client.publish(PhoneNumber=phoneNumber,Message=message)
+
+                return Response(responses, status.HTTP_200_OK)
         return Response(status=status.HTTP_401_UNAUTHORIZED)
 
     def delete(self, request, id):
         reservation = self.get_reservation(id)
         if (request.user.id == reservation.hall.user.id):
-            reservation.delete()
-            return Response(status=status.HTTP_204_NO_CONTENT)
+            if reservation.date.date()+timedelta(days=60) < date.today():
+                return Response(status=status.HTTP_401_UNAUTHORIZED)
+            else:
+                reservation.delete()
+                return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(status=status.HTTP_401_UNAUTHORIZED)

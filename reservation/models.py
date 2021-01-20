@@ -34,10 +34,6 @@ class Reservation(models.Model):
     wedding_count = models.PositiveSmallIntegerField(default=1)
 
 
-
-
-
-
 class ReservationImage(models.Model):
     reservation = models.ForeignKey(Reservation, related_name='images',on_delete=models.CASCADE)
     name = models.SlugField()

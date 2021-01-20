@@ -100,6 +100,7 @@ class Hall(models.Model):
     photo_number = models.SmallIntegerField(default=0)
     portion = ArrayField(size=24,base_field=models.SmallIntegerField(),default=[])
     wedding_count = models.SmallIntegerField(default=1)
+    per_capita = models.SmallIntegerField(default=0)
 
 
 _UNSAVED_IMAGEFIELD = 'unsaved_imagefield'

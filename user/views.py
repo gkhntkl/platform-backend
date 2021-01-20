@@ -11,6 +11,7 @@ from .models import User
 from hall.models import Hall,HallImage
 from slot.models import Slot
 from city.models import City
+from portion.models import Portion
 from hall.serializers import HallSerializer
 from .serializers import UserSerializer
 import uuid
@@ -22,25 +23,6 @@ from boto3.session import Session
 
 from django.conf import settings
 from botocore.exceptions import ClientError
-
-class UserListAPIView(APIView):
-
-    def get(self,request):
-        customers = User.objects.all()
-        serializer = UserSerializer(customers,many=True)
-
-        return Response(serializer.data)
-
-    def post(self,request):
-
-        serializer = UserSerializer(data=request.data)
-
-        if serializer.is_valid():
-            user = serializer.save()
-            user.set_password(serializer.data['password'])
-            user.save()
-            return Response(serializer.data,status=status.HTTP_201_CREATED)
-        return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
 
 class UserProfileAPIView(APIView):
 
@@ -61,6 +43,7 @@ class UserProfileAPIView(APIView):
         return Response(serializer.data,status.HTTP_200_OK)
 
     def put(self,request):
+
         user = self.get_user(request.user.id)
 
         serializer = UserSerializer(user,data=request.data,partial=True)
@@ -89,14 +72,11 @@ class UserProfileAPIView(APIView):
 class UserLoginAPIView(APIView):
 
     def post(self, request):
-
         serializer = UserSerializer(data=request.data)
-
         if serializer.is_valid():
             if 'email' in serializer.validated_data:
 
                 user = authenticate(username=serializer.validated_data['email'], password=serializer.validated_data['password'])
-
                 if user :
                     user.last_login = timezone.now()
                     token,created = Token.objects.get_or_create(user=user)
@@ -176,7 +156,7 @@ class UserHallAPIView(APIView):
             if hall.user.id == request.user.id:
                 serializer = HallSerializer(hall, data=data, partial=True)
                 if serializer.is_valid():
-                    serializer.update(hall, serializer.validated_data)
+
                     if 'greenToRed' in data:
                         for slot in data['greenToRed']:
 
@@ -184,10 +164,15 @@ class UserHallAPIView(APIView):
                             if s:
                                 s.halls.add(hall)
                     if 'redToGreen' in data:
+
                         for slot in data['redToGreen']:
                             s = Slot.objects.filter(pk=slot).first()
                             if s:
-                                s.halls.remove(hall)
+                                numOf_portions = Portion.objects.filter(hall=hall, slot=s).count()
+                                if(numOf_portions < hall.wedding_count * sum(hall.portion)):
+                                    s.halls.remove(hall)
+                                else:
+                                    return Response(slot,status=status.HTTP_304_NOT_MODIFIED)
 
                     session = Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                                         aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
@@ -233,7 +218,7 @@ class UserHallAPIView(APIView):
                         except ClientError as e:
 
                             return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
-
+                    serializer.update(hall, serializer.validated_data)
                     return Response(responses, status.HTTP_200_OK)
 
                 response = {"message": "Inputs wrong"}
