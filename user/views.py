@@ -210,6 +210,7 @@ class UserHallAPIView(APIView):
                                 Key=s3_object_name,
                                 ExpiresIn=3600
                             )
+                            print(response)
                             responses.append(response)
                             hall_image = HallImage()
                             hall_image.hall = hall
