@@ -201,7 +201,7 @@ class UserHallAPIView(APIView):
                     next(images)
                     i = data['photo_number'] + 1
                     responses = []
-                    s3_client = session.client('s3')
+                    s3_client = session.client('s3', config=Config(signature_version='s3v4'))
                     FILE_PATH = 'images/' + str(hall.id) + '/'
                     for image in images:
 
