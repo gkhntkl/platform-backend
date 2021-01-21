@@ -208,7 +208,12 @@ class UserHallAPIView(APIView):
                             response = s3_client.generate_presigned_post(
                                 Bucket=settings.AWS_STORAGE_BUCKET_NAME,
                                 Key=s3_object_name,
-                                ExpiresIn=3600
+                                ExpiresIn=3600,
+                                Fields={"acl": "public-read", "Content-Type": 'image/jpeg'},
+                                Conditions=[
+                                    {"acl": "public-read"},
+                                    {"Content-Type": 'image/jpeg'}
+                                ]
                             )
                             responses.append(response)
                             hall_image = HallImage()
