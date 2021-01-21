@@ -20,6 +20,7 @@ from api import settings
 import json
 
 from boto3.session import Session
+from botocore.client import Config
 
 from django.conf import settings
 from botocore.exceptions import ClientError
@@ -178,7 +179,7 @@ class UserHallAPIView(APIView):
                                         aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
 
 
-                    s3_resource = session.resource('s3')
+                    s3_resource = session.resource(service_name='s3',region_name="us-east-2", config=Config(signature_version='s3v4'))
                     my_bucket = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
 
                     obj = []
@@ -209,10 +210,10 @@ class UserHallAPIView(APIView):
                                 Bucket=settings.AWS_STORAGE_BUCKET_NAME,
                                 Key=s3_object_name,
                                 ExpiresIn=3600,
-                                Fields={"acl": "public-read", "Content-Type": 'image/jpeg'},
+                                Fields={"acl": "public-read", "Content-Type": 'multipart/form-data'},
                                 Conditions=[
                                     {"acl": "public-read"},
-                                    {"Content-Type": 'image/jpeg'}
+                                    {"Content-Type": 'multipart/form-data'}
                                 ]
                             )
 
