@@ -178,7 +178,8 @@ class UserHallAPIView(APIView):
                                         aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
 
 
-                    s3_resource = session.resource('s3')
+                    s3_resource = session.resource(service_name='s3',region_name="us-east-2")
+
                     my_bucket = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
 
                     obj = []
