@@ -14,6 +14,8 @@ import json
 from django.conf import settings
 from boto3.session import Session
 from django.db import transaction
+from botocore.client import Config
+
 from datetime import date,datetime,timedelta
 import logging
 
@@ -222,9 +224,10 @@ class ReservationPhotosAPIView(APIView):
             else:
 
                 session = Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                                  aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
+                                  aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                                    region_name="us-east-2")
 
-                s3_client = session.client('s3')
+                s3_client = session.client('s3', region_name="us-east-2", config=Config(signature_version='s3v4'))
                 s3_resource = session.resource('s3')
                 my_bucket = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
                 obj = []

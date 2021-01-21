@@ -15,6 +15,8 @@ import json
 from unidecode import unidecode
 import logging
 import uuid
+from botocore.client import Config
+
 from botocore.exceptions import ClientError
 from api import settings
 
@@ -62,9 +64,10 @@ class HallCreateAPIView(APIView):
             next(images)
 
             session = Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                              aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
+                              aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                                region_name="us-east-2")
 
-            s3_client = session.client('s3')
+            s3_client = session.client('s3', region_name="us-east-2", config=Config(signature_version='s3v4'))
 
             FILE_PATH = 'images/' + str(hall.id) + '/'
             responses = []
