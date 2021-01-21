@@ -215,6 +215,7 @@ class UserHallAPIView(APIView):
                                     {"Content-Type": 'image/jpeg'}
                                 ]
                             )
+                            print(response)
                             responses.append(response)
                             hall_image = HallImage()
                             hall_image.hall = hall
