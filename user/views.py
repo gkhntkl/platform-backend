@@ -181,6 +181,7 @@ class UserHallAPIView(APIView):
 
 
 
+
                     s3_resource = session.resource(service_name='s3',region_name="us-east-2", config=Config(signature_version='s3v4'))
 
                     my_bucket = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
