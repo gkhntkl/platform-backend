@@ -185,15 +185,23 @@ class UserHallAPIView(APIView):
                     s3_resource = session.resource(service_name='s3',region_name="us-east-2", config=Config(signature_version='s3v4'))
 
                     my_bucket = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
+                    my_bucket_resized = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME_RESIZED)
 
                     obj = []
+                    obj_resized = []
                     if data['deletedImages'] != []:
                         for image in data['deletedImages']:
-                            obj.append({'Key':'images/'+str(hall.id)+'/'+image + "/image"})
+                            obj.append({'Key':'images/'+str(hall.id)+'/'+image + "/image.jpg"})
+                            obj_resized.append({'Key':'resized-images/'+str(hall.id)+'/'+image + "/image.jpg"})
 
                         response = my_bucket.delete_objects(
                             Delete={
                                 'Objects': obj,
+                            }
+                        )
+                        response = my_bucket_resized.delete_objects(
+                            Delete={
+                                'Objects': obj_resized,
                             }
                         )
                         images_to_delete = HallImage.objects.filter(hall=hall).filter(name__in=data['deletedImages'])

@@ -16,6 +16,7 @@ from unidecode import unidecode
 import logging
 import uuid
 from botocore.client import Config
+from datetime import datetime, date,timedelta
 
 from botocore.exceptions import ClientError
 from api import settings
@@ -127,9 +128,12 @@ class HallSearchAPIView(APIView):
 
     def put(self, request):
         data = request.data
-        halls = self.get_hall(data['number'],data['date'],data['district'])
-        serializer = HallSerializer(halls,many=True)
-        return Response(serializer.data)
+        if(datetime.strptime(data['date'],"%Y-%m-%d").date() < date.today() or date.today() + timedelta(days=1850) < datetime.strptime(data['date'],"%Y-%m-%d").date()):
+           return Response([])
+        else:
+            halls = self.get_hall(data['number'],data['date'],data['district'])
+            serializer = HallSerializer(halls,many=True)
+            return Response(serializer.data)
 
 
 class HallNameSearchAPIView(APIView):

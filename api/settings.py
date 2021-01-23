@@ -163,7 +163,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR,'build/static/images')
 AWS_ACCESS_KEY_ID = 'AKIAVGK4LKIZG4NCGCXM'
 AWS_SECRET_ACCESS_KEY = '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'
 AWS_STORAGE_BUCKET_NAME = 'my-wedding-hall-project'
-
+AWS_STORAGE_BUCKET_NAME_RESIZED = 'my-wedding-hall-project-resized'
 AWS_S3_FILE_OVERWRITE = False
 AWS_DEFAULT_ACL = None
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'

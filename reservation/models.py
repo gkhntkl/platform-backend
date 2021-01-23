@@ -32,6 +32,7 @@ class Reservation(models.Model):
     expired = models.BooleanField(default=False)
     portion = ArrayField(ArrayField(models.SmallIntegerField()))
     wedding_count = models.PositiveSmallIntegerField(default=1)
+    passcode = models.PositiveIntegerField(default=1)
 
 
 class ReservationImage(models.Model):
@@ -50,7 +51,14 @@ def create_auth_token(sender, instance=None, created=False, **kwargs):
         message = "http://18.218.147.80:3000/reservation/"+str(instance.id)
 
        # print(message)
-       # s3_client.publish(PhoneNumber=phoneNumber,Message=message)
+        if instance.hall.num_of_messages < instance.hall.quota_of_messages:
+            if phoneNumber != "+90":
+                #s3_client.publish(PhoneNumber=phoneNumber,Message=message)
+
+                instance.hall.num_of_messages = instance.hall.num_of_messages + 1
+                instance.hall.save()
+
+
 
 
 
