@@ -100,21 +100,22 @@ class UserSignupAPIView(APIView):
 
     def post(self, request):
 
-        serializer = UserSerializer(data=request.data)
+        serializer = UserSerializer(data=request.data,partial=True)
 
         if serializer.is_valid():
-            if 'email' in serializer.validated_data:
+            if 'email' in serializer.validated_data :
+                if request.data['passcode'] == '8844gkhn':
+                    user = User.objects.filter(email=serializer.validated_data['email'])
 
-                user = User.objects.filter(email=serializer.validated_data['email'])
+                    if user:
+                        response = {"message": "Email already exists"}
+                        return Response(response, status=status.HTTP_409_CONFLICT)
 
-                if user:
-                    response = {"message":"Email already exists"}
-                    return Response(response, status=status.HTTP_409_CONFLICT)
-
-                serializer.save(username=serializer.validated_data['email'],company_name=serializer.validated_data['company_name'])
-                response = {"message": "Successfully Signed up"}
-                return Response(response, status=status.HTTP_201_CREATED)
-
+                    serializer.save(username=serializer.validated_data['email'],
+                                    company_name=serializer.validated_data['company_name'])
+                    response = {"message": "Successfully Signed up"}
+                    return Response(response, status=status.HTTP_201_CREATED)
+                return Response(status=status.HTTP_401_UNAUTHORIZED)
         response = {"message": "Required field(s) missing"}
         return Response(response, status=status.HTTP_400_BAD_REQUEST)
 

@@ -3,9 +3,10 @@ from rest_framework.views import APIView
 from portion.models import Portion
 from rest_framework.response import Response
 from rest_framework import status
+from braces.views import CsrfExemptMixin
 
-class PortionDetailAPIView(APIView):
-
+class PortionDetailAPIView(CsrfExemptMixin, APIView):
+    authentication_classes = []
     def get_portion(self,hall,slot):
 
         try:
