@@ -94,8 +94,8 @@ class UserLoginAPIView(APIView):
 
         response = {"message": "Required field(s) missing"}
         return Response(response, status=status.HTTP_400_BAD_REQUEST)
-
-
+    
+    
 class UserSignupAPIView(APIView):
 
     def post(self, request):
@@ -119,8 +119,7 @@ class UserSignupAPIView(APIView):
         response = {"message": "Required field(s) missing"}
         return Response(response, status=status.HTTP_400_BAD_REQUEST)
 
-
-
+    
 class UserHallAPIView(APIView):
 
     authentication_classes = [TokenAuthentication]
