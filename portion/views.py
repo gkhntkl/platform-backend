@@ -3,10 +3,9 @@ from rest_framework.views import APIView
 from portion.models import Portion
 from rest_framework.response import Response
 from rest_framework import status
-from braces.views import CsrfExemptMixin
 
-class PortionDetailAPIView(CsrfExemptMixin, APIView):
-    authentication_classes = []
+class PortionDetailAPIView(APIView):
+
     def get_portion(self,hall,slot):
 
         try:
@@ -15,12 +14,13 @@ class PortionDetailAPIView(CsrfExemptMixin, APIView):
         except Portion.DoesNotExist:
             return 1
 
-    def put(self,request):
-        response = request.data['portion']
-        portions = self.get_portion(request.data['hall'], request.data['slot'])
-        x =  [[0 for y in range(len(request.data['wedding_count']))] for x in range(24)]
+    def get(self,request):
+
+        response = request.GET.getlist('portion[]')
+        portions = self.get_portion(request.GET.get('hall'), request.GET.get('slot'))
+        x =  [[0 for y in range(len(request.GET.getlist('wedding_count[]')))] for x in range(24)]
         for i in range(24):
-            for j in range(len(request.data['wedding_count'])):
+            for j in range(len(request.GET.getlist('wedding_count[]'))):
                 if response[i] == 0:
                     x[i][j] = 0
                 elif response[i] == 1:
