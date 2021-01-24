@@ -17,13 +17,14 @@ class PortionDetailAPIView(APIView):
     def get(self,request):
 
         response = request.GET.getlist('portion[]')
+
         portions = self.get_portion(request.GET.get('hall'), request.GET.get('slot'))
         x =  [[0 for y in range(len(request.GET.getlist('wedding_count[]')))] for x in range(24)]
         for i in range(24):
             for j in range(len(request.GET.getlist('wedding_count[]'))):
-                if response[i] == 0:
+                if int(response[i]) == 0:
                     x[i][j] = 0
-                elif response[i] == 1:
+                elif int(response[i]) == 1:
                     x[i][j] = 1
                 else:
                     x[i][j] = -1
