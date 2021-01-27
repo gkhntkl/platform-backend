@@ -42,21 +42,6 @@ class ReservationImage(models.Model):
     def __str__(self):
         return self.name
 
-@receiver(post_save, sender=Reservation)
-def create_auth_token(sender, instance=None, created=False, **kwargs):
-    if created:
-        phoneNumber = "+90" + instance.phone
-        hall = instance.hall
-        city = instance.hall.city
-        message = "http://18.218.147.80:3000/reservation/"+str(instance.id)
-
-       # print(message)
-        if instance.hall.num_of_messages < instance.hall.quota_of_messages:
-            if phoneNumber != "+90":
-                #s3_client.publish(PhoneNumber=phoneNumber,Message=message)
-
-                instance.hall.num_of_messages = instance.hall.num_of_messages + 1
-                instance.hall.save()
 
 
 

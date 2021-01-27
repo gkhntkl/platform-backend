@@ -15,6 +15,12 @@ from django.conf import settings
 from boto3.session import Session
 from django.db import transaction
 from botocore.client import Config
+import maya
+session = Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                          aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
+
+s3_client = session.client('sns','us-east-2')
+
 
 from datetime import date,datetime,timedelta
 import logging
@@ -51,17 +57,28 @@ class ReservationUpdateAPIView(APIView):
 
     @transaction.atomic
     def createPortion(self,portion,hall,slot):
+        dt = maya.parse(slot).datetime()
+        if dt.hour > 21:
+            dt = dt + timedelta(days=1)
+            dt = dt.strftime("%Y-%m-%d")
+        else:
+            dt = dt.strftime("%Y-%m-%d")
         for portion in portion:
-            Portion.objects.create(hall_id=hall,slot_id=slot[0:10],spot=portion[0],wedding_count=portion[1])
+            Portion.objects.create(hall_id=hall, slot_id=dt, spot=portion[0], wedding_count=portion[1])
+
 
     def deletePortion(self,portion,hall,slot):
+
+        if slot.hour > 21:
+            slot = slot + timedelta(days=1)
+        dt = slot.strftime("%Y-%m-%d")
         for portion in portion:
-            Portion.objects.filter(hall_id=hall,slot_id=slot,spot=portion[0],wedding_count=portion[1]).delete()
+            Portion.objects.filter(hall_id=hall,slot_id=dt,spot=portion[0],wedding_count=portion[1]).delete()
 
 
     def put(self, request, id):
         reservation = self.get_reservation(id)
-
+        print(request.data)
         if(reservation.date.date() < date.today()):
             return Response(status=status.HTTP_401_UNAUTHORIZED)
         else:
@@ -78,8 +95,10 @@ class ReservationUpdateAPIView(APIView):
                                 s.halls.add(request.data['hall'])
 
                     else:
+
                         self.deletePortion(request.data['reservedPortion'], request.data['hall'], reservation.date)
                         self.createPortion(request.data['portion'], request.data['hall'], request.data['date'])
+
                         reservation.portion = request.data['portion']
                         if (not request.data['is_available']):
                             if reservation.date.strftime('%Y-%m-%d') != request.data['date'][0:10]:
@@ -133,9 +152,16 @@ class ReservationCreateAPIView(APIView):
 
     @transaction.atomic
     def createPortion(self,portion,hall,slot):
-        for portion in portion:
 
-            Portion.objects.create(hall_id=hall,slot_id=slot[0:10],spot=portion[0],wedding_count=portion[1])
+        for portion in portion:
+            if portion[0] < 3:
+                dt = maya.parse(slot).datetime()
+                dt = dt + timedelta(days=1)
+                dt = dt.strftime("%Y-%m-%d")
+                Portion.objects.create(hall_id=hall, slot_id=dt, spot=portion[0], wedding_count=portion[1])
+
+            else:
+                Portion.objects.create(hall_id=hall,slot_id=slot[0:10],spot=portion[0],wedding_count=portion[1])
 
 
     def post(self, request, *args, **kwargs):
@@ -150,20 +176,30 @@ class ReservationCreateAPIView(APIView):
         else:
             serializer = ReservationSerializer(data=request.data, partial=True)
             if serializer.is_valid():
-                self.createPortion(request.data['portion'], request.data['hall'], request.data['date'])
-                reservation = serializer.save()
-                if (not request.data['is_available']):
-                    s = Slot.objects.filter(pk=request.data['date'][0:10]).first()
-                    if s:
-                        s.halls.add(request.data['hall'])
-                else:
-                    if (request.data['close']):
+                hall = Hall.objects.get(id=request.data['hall'])
+                if request.user.id == hall.user.id:
+                    self.createPortion(request.data['portion'], request.data['hall'], request.data['date'])
+                    reservation = serializer.save()
+                    if (not request.data['is_available']):
                         s = Slot.objects.filter(pk=request.data['date'][0:10]).first()
                         if s:
                             s.halls.add(request.data['hall'])
+                    else:
+                        if (request.data['close']):
+                            s = Slot.objects.filter(pk=request.data['date'][0:10]).first()
+                            if s:
+                                s.halls.add(request.data['hall'])
+                    if request.data['smsChecked']:
+                        phoneNumber = "+90" + request.data['phone']
+                        message = "Merhabalar,\nRezervasyon detaylarınıza aşağıdaki linkten ulaşabilirsiniz.\n"+"salonayır.com/reservation/" + str(reservation.id)
 
-                return Response(serializer.data, status=status.HTTP_201_CREATED)
-
+                        if  hall.num_of_messages <  hall.quota_of_messages:
+                            if phoneNumber != "+90":
+                                s3_client.publish(PhoneNumber=phoneNumber,Message=message)
+                                hall.num_of_messages = hall.num_of_messages + 1
+                                hall.save()
+                    return Response(serializer.data, status=status.HTTP_201_CREATED)
+                return Response(status=status.HTTP_401_UNAUTHORIZED)
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -280,11 +316,10 @@ class ReservationPhotosAPIView(APIView):
                                 return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
                         phoneNumber = "+90" + reservation.phone
-                        message = "Merhabalar,Aşağıdaki Linkten Ulaşabileceğiniz Albümünüz Güncellenmiştir.\nBizi Tercih Ettiğiniz için Teşekkür Ederiz.\n" + "http://18.218.147.80:3000/reservation/" + str(
-                            reservation.id)
+                        message = "Merhabalar,Aşağıdaki Linkten Ulaşabileceğiniz Albümünüz Güncellenmiştir.\nBizi Tercih Ettiğiniz için Teşekkür Ederiz.\n" + "salonayır.com/reservation/" + str(reservation.id)
                         if phoneNumber != "+90":
-                           # s3_client = session.client('sns', 'us-east-2')
-                           # s3_client.publish(PhoneNumber=phoneNumber,Message=message)
+                            s3_client = session.client('sns', 'us-east-2')
+                            s3_client.publish(PhoneNumber=phoneNumber,Message=message)
 
                             reservation.hall.num_of_messages = reservation.hall.num_of_messages + 1
                         reservation.hall.num_of_images = reservation.hall.num_of_images + num_images
