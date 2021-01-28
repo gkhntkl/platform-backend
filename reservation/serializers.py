@@ -10,6 +10,9 @@ class ReservationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reservation
         fields = '__all__'
+        extra_kwargs = {
+            'payment_done': {'write_only': True},
+        }
 
 
     def to_representation(self, instance):

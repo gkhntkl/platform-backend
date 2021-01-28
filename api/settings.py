@@ -101,8 +101,10 @@ DATABASES = {
 0 0 utc+3 icin bilgisayar loca timeina gore calisir.AWS de date +'%z %Z' konsolda bunu yazarak timezone ogren 
 '''
 CRONJOBS = [
-    ('*/1 * * * *', 'reservation.cron.update_reservation'),
+    ('*/60 * * * *', 'reservation.cron.update_reservation'),
     ('0 21 * * *', 'slot.cron.update_slot'),
+    ('0 15 * * *', 'reservation.cron.notify_duration'),
+    ('0 2 * * *', 'reservation.cron.delete_photos_not_extended'),
 ]
 
 # Password validation

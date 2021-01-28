@@ -23,7 +23,7 @@ s3_client = session.client('sns','us-east-2')
 
 
 from datetime import date,datetime,timedelta
-import logging
+
 
 from botocore.exceptions import ClientError
 
@@ -252,7 +252,7 @@ class ReservationPhotosAPIView(APIView):
     def post(self, request, id):
         reservation = self.get_reservation(id)
         data = json.loads(request.data['data'])
-
+        print(data)
         if (request.user.id == reservation.hall.user.id):
 
             if reservation.date.date()+timedelta(days=60) < date.today():
@@ -296,6 +296,7 @@ class ReservationPhotosAPIView(APIView):
                         responses = []
                         num_images = 0
                         for image,idx in enumerate(images):
+
                             num_images =  num_images +1
                             try:
                                 name = uuid.uuid4()
@@ -316,12 +317,16 @@ class ReservationPhotosAPIView(APIView):
                                 return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
                         phoneNumber = "+90" + reservation.phone
-                        message = "Merhabalar,Aşağıdaki Linkten Ulaşabileceğiniz Albümünüz Güncellenmiştir.\nBizi Tercih Ettiğiniz için Teşekkür Ederiz.\n" + "salonayır.com/reservation/" + str(reservation.id)
+                        message = "Merhabalar,Aşağıdaki Linkten Ulaşabileceğiniz Albümünüz Güncellenmiştir.\nBizi Tercih Ettiğiniz için Teşekkür Ederiz.\n" + "salonayır.com/photos/" + str(reservation.id)
                         if phoneNumber != "+90":
                             s3_client = session.client('sns', 'us-east-2')
                             s3_client.publish(PhoneNumber=phoneNumber,Message=message)
 
                             reservation.hall.num_of_messages = reservation.hall.num_of_messages + 1
+
+                        if data['duration'] != 0 and data['duration'] < 21:
+                            reservation.duration = data['duration']
+                            reservation.save()
                         reservation.hall.num_of_images = reservation.hall.num_of_images + num_images
                         reservation.hall.save()
 
@@ -366,6 +371,7 @@ class ReservationPhotosAPIView(APIView):
                     responses = []
                     num_images=0
                     for image,idx in enumerate(images):
+
                         num_images = num_images +1
                         try:
                             name = uuid.uuid4()
@@ -384,6 +390,10 @@ class ReservationPhotosAPIView(APIView):
                             reservation.hall.num_of_images = reservation.hall.num_of_images + idx
                             reservation.hall.save()
                             return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+                    if data['duration'] != 0 and data['duration'] < 21:
+                        reservation.duration = data['duration']
+                        reservation.save()
                     reservation.hall.num_of_images = reservation.hall.num_of_images + num_images
                     reservation.hall.save()
                     return Response(responses,status=status.HTTP_200_OK)

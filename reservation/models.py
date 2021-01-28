@@ -6,6 +6,11 @@ from api import settings
 from django.db import models
 from hall.models import Hall
 from django.contrib.postgres.fields import ArrayField
+from datetime import datetime,timedelta
+
+from django.db.models.signals import pre_delete
+from django.dispatch import receiver
+from botocore.client import Config
 
 session = Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                           aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
@@ -17,7 +22,8 @@ SERVICE_TYPES = (
         (1, "Wedding"),
         (2, "Preaching"),
         (3, "Circumcision"),
-        (4, "Other")
+        (4, "Other"),
+        (5, "Wedding2")
     )
 
 class Reservation(models.Model):
@@ -32,7 +38,14 @@ class Reservation(models.Model):
     expired = models.BooleanField(default=False)
     portion = ArrayField(ArrayField(models.SmallIntegerField()))
     wedding_count = models.PositiveSmallIntegerField(default=1)
-    passcode = models.PositiveIntegerField(default=1)
+    duration = models.PositiveIntegerField(default=5)
+    duration_end = models.DateTimeField()
+    payment_done = models.BooleanField(default=False)
+
+    def save(self, *args, **kwargs):
+        self.duration_end = self.date + timedelta(weeks=52 * self.duration)
+        super().save(*args, **kwargs)
+
 
 
 class ReservationImage(models.Model):
@@ -43,8 +56,32 @@ class ReservationImage(models.Model):
         return self.name
 
 
+@receiver(pre_delete, sender=Reservation)
+def log_deleted_question(sender, instance, using, **kwargs):
+    images = ReservationImage.objects.filter(reservation=instance)
 
+    s3_client = session.client('s3', region_name="us-east-2",
+                               config=Config(signature_version='s3v4'))
+    s3_resource = session.resource('s3', region_name="us-east-2", config=Config(signature_version='s3v4'))
+    my_bucket = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
+    my_bucket_resized = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME_RESIZED)
+    obj = []
+    obj_resized = []
 
+    for image in images:
+        obj.append({'Key': 'photos/' + str(instance.id) + '/' + image.name + "/image.jpg"})
+        obj_resized.append({'Key': 'resized-photos/' + str(instance.id) + '/' + image.name + "/image.jpg"})
+
+    my_bucket.delete_objects(
+        Delete={
+            'Objects': obj,
+        }
+    )
+    my_bucket_resized.delete_objects(
+        Delete={
+            'Objects': obj_resized,
+        }
+    )
 
 
 
