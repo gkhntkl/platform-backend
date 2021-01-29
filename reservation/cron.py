@@ -20,17 +20,17 @@ def notify_duration():
   start = datetime.now() + timedelta(days=29)
   end = datetime.now() + timedelta(days=30)
   reservations = Reservation.objects.filter(expired=True).filter(duration_end__range=(start,end))
-  message = "Merhabalar,\nAlbümünüzün süresi uzatılmadığı takdirde 30 gün içinde silinecetir.\nSürenin uzatılması için bizimle irtibata geçebilirsiniz.\nsalonayır.com/contact"
+  message = "Merhabalar,\n30 gün içinde süresi uzatılmadığı takdirde Albümünüz silinecektir.\nBu konu hakkında bizimle irtibata geçebilirsiniz.İyi günler dileriz\nsalonayır.com/contact"
 
   for reservation in reservations:
     if reservation.hall.num_of_messages < reservation.hall.quota_of_messages:
       if reservation.phone != "+90":
-        s3_client.publish(PhoneNumber="+90"+reservation.phone, Message=message)
+        #s3_client.publish(PhoneNumber="+90"+reservation.phone, Message=message)
         reservation.hall.num_of_messages = reservation.hall.num_of_messages + 1
         reservation.hall.save()
 
 def delete_photos_not_extended():
-  print("done")
-  Reservation.objects.filter(expired=True).filter(duration_end__lt=datetime.now()).delete()
+
+  Reservation.objects.filter(duration_end__lt=datetime.now()).delete()
 
 

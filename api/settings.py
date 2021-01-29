@@ -14,7 +14,7 @@ SECRET_KEY = ')vo$dy^%t#dx!nv(nwy*)(*x9cb26cbnfa#vvj0!(drari-01t'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['127.0.0.1']
+ALLOWED_HOSTS = ['127.0.0.1','localhost']
 
 CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOW_CREDENTIALS = True
@@ -101,10 +101,10 @@ DATABASES = {
 0 0 utc+3 icin bilgisayar loca timeina gore calisir.AWS de date +'%z %Z' konsolda bunu yazarak timezone ogren 
 '''
 CRONJOBS = [
-    ('*/60 * * * *', 'reservation.cron.update_reservation'),
+    ('*/1 * * * *', 'reservation.cron.update_reservation'),
     ('0 21 * * *', 'slot.cron.update_slot'),
-    ('0 15 * * *', 'reservation.cron.notify_duration'),
-    ('0 2 * * *', 'reservation.cron.delete_photos_not_extended'),
+    ('30 12 * * *', 'reservation.cron.notify_duration'),
+    ('24 19 * * *', 'reservation.cron.delete_photos_not_extended'),
 ]
 
 # Password validation

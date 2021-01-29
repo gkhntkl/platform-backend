@@ -7,7 +7,7 @@ from django.db import models
 from hall.models import Hall
 from django.contrib.postgres.fields import ArrayField
 from datetime import datetime,timedelta
-
+from django.utils.dateparse import parse_datetime
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 from botocore.client import Config
@@ -34,16 +34,20 @@ class Reservation(models.Model):
     name2 = models.TextField(max_length=50,default="",blank=True,null=True)
     phone = models.TextField(max_length=10)
     hall = models.ForeignKey(Hall, on_delete=models.PROTECT, related_name="hall")
-    date = models.DateTimeField()
+    date = models.DateTimeField(default=datetime.now)
     expired = models.BooleanField(default=False)
     portion = ArrayField(ArrayField(models.SmallIntegerField()))
     wedding_count = models.PositiveSmallIntegerField(default=1)
     duration = models.PositiveIntegerField(default=5)
-    duration_end = models.DateTimeField()
+    duration_end = models.DateTimeField(default=datetime.now)
     payment_done = models.BooleanField(default=False)
 
     def save(self, *args, **kwargs):
-        self.duration_end = self.date + timedelta(weeks=52 * self.duration)
+        if isinstance(self.date,datetime):
+            self.duration_end = self.date + timedelta(weeks=52 * self.duration)
+        else:
+            self.duration_end = parse_datetime(self.date) + timedelta(weeks=52 * self.duration)
+
         super().save(*args, **kwargs)
 
 
