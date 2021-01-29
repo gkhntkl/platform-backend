@@ -16,6 +16,8 @@ from boto3.session import Session
 from django.db import transaction
 from botocore.client import Config
 import maya
+
+
 session = Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                           aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
 
@@ -78,7 +80,7 @@ class ReservationUpdateAPIView(APIView):
 
     def put(self, request, id):
         reservation = self.get_reservation(id)
-        print(request.data)
+
         if(reservation.date.date() < date.today()):
             return Response(status=status.HTTP_401_UNAUTHORIZED)
         else:
@@ -252,7 +254,7 @@ class ReservationPhotosAPIView(APIView):
     def post(self, request, id):
         reservation = self.get_reservation(id)
         data = json.loads(request.data['data'])
-        print(data)
+
         if (request.user.id == reservation.hall.user.id):
 
             if reservation.date.date()+timedelta(days=60) < date.today():
@@ -317,7 +319,7 @@ class ReservationPhotosAPIView(APIView):
                                 return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
                         phoneNumber = "+90" + reservation.phone
-                        message = "Merhabalar,Aşağıdaki Linkten Ulaşabileceğiniz Albümünüz Güncellenmiştir.\nBizi Tercih Ettiğiniz için Teşekkür Ederiz.\n" + "salonayır.com/photos/" + str(reservation.id)
+                        message = "Merhabalar,Linkten Ulaşabileceğiniz Albümünüz Güncellenmiştir.\nBizi Tercih Ettiğiniz için Teşekkür Ederiz.\n"+"Albüm Şifresi:"+reservation.code + "\nsalonayır.com/photos/" + str(reservation.id)
                         if phoneNumber != "+90":
                             s3_client = session.client('sns', 'us-east-2')
                             s3_client.publish(PhoneNumber=phoneNumber,Message=message)
@@ -408,3 +410,21 @@ class ReservationPhotosAPIView(APIView):
                 reservation.delete()
                 return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(status=status.HTTP_401_UNAUTHORIZED)
+
+class ReservationCheckAuthAPIView(APIView):
+
+    def get_reservation(self, id):
+        try:
+            return Reservation.objects.get(id=id)
+        except Reservation.DoesNotExist:
+            raise Http404
+
+    def post(self, request):
+
+        reservation = self.get_reservation(request.data['id'])
+
+        if str(reservation.code) == request.data['code']:
+            serializer = ReservationSerializer(reservation)
+            return Response(serializer.data,status=status.HTTP_200_OK)
+        else:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)

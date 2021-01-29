@@ -11,6 +11,7 @@ from django.utils.dateparse import parse_datetime
 from django.db.models.signals import pre_delete
 from django.dispatch import receiver
 from botocore.client import Config
+from random import randint
 
 session = Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                           aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
@@ -41,8 +42,11 @@ class Reservation(models.Model):
     duration = models.PositiveIntegerField(default=5)
     duration_end = models.DateTimeField(default=datetime.now)
     payment_done = models.BooleanField(default=False)
+    code = models.IntegerField(default=11111111)
 
     def save(self, *args, **kwargs):
+        if self.code == 11111111:
+            self.code = randint(11111112, 99999999)
         if isinstance(self.date,datetime):
             self.duration_end = self.date + timedelta(weeks=52 * self.duration)
         else:
