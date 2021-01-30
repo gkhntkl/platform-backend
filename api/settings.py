@@ -105,6 +105,7 @@ CRONJOBS = [
     ('0 21 * * *', 'slot.cron.update_slot'),
     ('30 12 * * *', 'reservation.cron.notify_duration'),
     ('24 19 * * *', 'reservation.cron.delete_photos_not_extended'),
+    ('0 0 1 * *', 'reservation.cron.update_count_of_visit'),
 ]
 
 # Password validation

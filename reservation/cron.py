@@ -33,4 +33,8 @@ def delete_photos_not_extended():
 
   Reservation.objects.filter(duration_end__lt=datetime.now()).delete()
 
+def update_count_of_visit():
+  Reservation.objects.filter(expired=True).update(count_of_visit=0)
+
+
 

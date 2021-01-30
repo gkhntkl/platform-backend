@@ -16,7 +16,9 @@ from boto3.session import Session
 from django.db import transaction
 from botocore.client import Config
 import maya
-
+from datetime import datetime,timedelta
+from django.utils.dateparse import parse_datetime
+from django.utils import timezone
 
 session = Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                           aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
@@ -424,7 +426,16 @@ class ReservationCheckAuthAPIView(APIView):
         reservation = self.get_reservation(request.data['id'])
 
         if str(reservation.code) == request.data['code']:
-            serializer = ReservationSerializer(reservation)
-            return Response(serializer.data,status=status.HTTP_200_OK)
+            if (reservation.date + timedelta(weeks=24)) > timezone.now():
+                serializer = ReservationSerializer(reservation)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            else:
+                if reservation.count_of_visit < 300:
+                    serializer = ReservationSerializer(reservation)
+                    reservation.count_of_visit += 1
+                    reservation.save()
+                    return Response(serializer.data, status=status.HTTP_200_OK)
+                else:
+                    return Response(status=status.HTTP_403_FORBIDDEN)
         else:
             return Response(status=status.HTTP_401_UNAUTHORIZED)

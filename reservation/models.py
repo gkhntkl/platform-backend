@@ -43,6 +43,7 @@ class Reservation(models.Model):
     duration_end = models.DateTimeField(default=datetime.now)
     payment_done = models.BooleanField(default=False)
     code = models.IntegerField(default=11111111)
+    count_of_visit = models.IntegerField(default=0)
 
     def save(self, *args, **kwargs):
         if self.code == 11111111:
