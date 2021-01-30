@@ -19,6 +19,7 @@ import maya
 from datetime import datetime,timedelta
 from django.utils.dateparse import parse_datetime
 from django.utils import timezone
+import boto3
 
 session = Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                           aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
@@ -44,9 +45,52 @@ class ReservationDetailAPIView(APIView):
 
         reservation = self.get_reservation(id)
         if isinstance(reservation, Reservation):
-            serializer = ReservationSerializer(reservation)
-            return Response(serializer.data)
+                serializer = ReservationSerializer(reservation)
+                return Response(serializer.data)
+
         return Response(status=status.HTTP_404_NOT_FOUND)
+
+class ReservationSavePhotosAPIView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_reservation(self, id):
+        try:
+            return Reservation.objects.get(id=id)
+        except Reservation.DoesNotExist:
+            raise Http404
+
+    def get(self, request, id):
+
+        reservation = self.get_reservation(id)
+        if isinstance(reservation, Reservation):
+
+            if reservation.hall.user.id == request.user.id:
+                serializer = ReservationSerializer(reservation)
+
+                urls = []
+                s3_client = boto3.client('s3')
+                for image in serializer.data['images']:
+                    s3_object_name = "resized-photos" + "/" + str(reservation.id) + "/" + str(image) + "/" + "image.jpg"
+                    url = s3_client.generate_presigned_url(
+                        "get_object",
+                        Params={
+                            "Bucket": settings.AWS_STORAGE_BUCKET_NAME_RESIZED,
+                            "Key": s3_object_name
+                        },
+                        ExpiresIn=3600
+                    )
+                    urls.append(url)
+                response = {
+                    "data":serializer.data,
+                    "images":urls
+                }
+                return Response(response,status=status.HTTP_200_OK)
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
+        return Response(status=status.HTTP_404_NOT_FOUND)
+
+
+
 
 
 class ReservationUpdateAPIView(APIView):
@@ -426,15 +470,81 @@ class ReservationCheckAuthAPIView(APIView):
         reservation = self.get_reservation(request.data['id'])
 
         if str(reservation.code) == request.data['code']:
+            s3_client = boto3.client('s3')
             if (reservation.date + timedelta(weeks=24)) > timezone.now():
                 serializer = ReservationSerializer(reservation)
-                return Response(serializer.data, status=status.HTTP_200_OK)
+                images = ReservationImage.objects.filter(reservation=reservation)
+                responses = []
+
+                for image in images:
+                    s3_object_name = "photos" + "/" + str(reservation.id) + "/" + str(image.name) + "/" + "image.jpg"
+                    s3_object_name_resized = "resized-photos" + "/" + str(reservation.id) + "/" + str(
+                        image.name) + "/" + "image.jpg"
+
+                    response = s3_client.generate_presigned_url(
+                        "get_object",
+                        Params={
+                            "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+                            "Key": s3_object_name
+                        },
+                        ExpiresIn=3600
+                    )
+                    response_resized = s3_client.generate_presigned_url(
+                        "get_object",
+                        Params={
+                            "Bucket": settings.AWS_STORAGE_BUCKET_NAME_RESIZED,
+                            "Key": s3_object_name_resized,
+                        },
+                        ExpiresIn=3600
+                    )
+                    image_urls = {
+                        "original":response,
+                        "thumbnail":response_resized
+                    }
+                    responses.append(image_urls)
+                res = {
+                    "images": responses,
+                    "data": serializer.data
+                }
+                return Response(res, status=status.HTTP_200_OK)
             else:
                 if reservation.count_of_visit < 300:
                     serializer = ReservationSerializer(reservation)
                     reservation.count_of_visit += 1
                     reservation.save()
-                    return Response(serializer.data, status=status.HTTP_200_OK)
+                    images = ReservationImage.objects.filter(reservation=reservation)
+                    responses = []
+                    for image in images:
+                        s3_object_name = "photos" + "/" + str(reservation.id) + "/" + str(image.name) + "/" + "image.jpg"
+                        s3_object_name_resized = "resized-photos" + "/" + str(reservation.id) + "/" + str(image.name) + "/" + "image.jpg"
+                        response = s3_client.generate_presigned_url(
+                            "get_object",
+                            Params={
+                                "Bucket":settings.AWS_STORAGE_BUCKET_NAME,
+                                "Key":s3_object_name,
+                            },
+                            ExpiresIn=3600
+                        )
+                        response_resized = s3_client.generate_presigned_url(
+                            "get_object",
+                            Params={
+                                "Bucket": settings.AWS_STORAGE_BUCKET_NAME_RESIZED,
+                                "Key": s3_object_name_resized,
+                            },
+                            ExpiresIn=3600
+                        )
+
+                        image_urls = {
+                            "original": response,
+                            "thumbnail": response_resized
+                        }
+                        responses.append(image_urls)
+
+                    res = {
+                        "images":responses,
+                        "data":serializer.data
+                    }
+                    return Response(res, status=status.HTTP_200_OK)
                 else:
                     return Response(status=status.HTTP_403_FORBIDDEN)
         else:
