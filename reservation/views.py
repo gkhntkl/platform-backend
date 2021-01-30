@@ -89,10 +89,6 @@ class ReservationSavePhotosAPIView(APIView):
             return Response(status=status.HTTP_401_UNAUTHORIZED)
         return Response(status=status.HTTP_404_NOT_FOUND)
 
-
-
-
-
 class ReservationUpdateAPIView(APIView):
     authentication_classes = [TokenAuthentication]
     permission_classes = [IsAuthenticated]
@@ -302,19 +298,99 @@ class ReservationPhotosAPIView(APIView):
         data = json.loads(request.data['data'])
 
         if (request.user.id == reservation.hall.user.id):
-
-            if reservation.date.date()+timedelta(days=60) < date.today():
-                return Response(status=status.HTTP_304_NOT_MODIFIED)
+            if reservation.payment_done:
+                return Response(status=status.HTTP_402_PAYMENT_REQUIRED)
             else:
-                if(data['smsChecked']):
-                    if reservation.hall.num_of_messages < reservation.hall.quota_of_messages:
+                if reservation.date.date() + timedelta(days=60) < date.today():
+                    return Response(status=status.HTTP_304_NOT_MODIFIED)
+                else:
+                    if (data['smsChecked']):
+                        if reservation.hall.num_of_messages < reservation.hall.quota_of_messages:
+                            session = Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                                              aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+                                              region_name="us-east-2")
+
+                            s3_client = session.client('s3', region_name="us-east-2",
+                                                       config=Config(signature_version='s3v4'))
+                            s3_resource = session.resource('s3', region_name="us-east-2",
+                                                           config=Config(signature_version='s3v4'))
+                            my_bucket = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
+                            my_bucket_resized = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME_RESIZED)
+                            obj = []
+                            obj_resized = []
+                            if data['deletedImages'] != []:
+                                for image in data['deletedImages']:
+                                    obj.append({'Key': 'photos/' + str(reservation.id) + '/' + image + "/image.jpg"})
+                                    obj_resized.append(
+                                        {'Key': 'resized-photos/' + str(reservation.id) + '/' + image + "/image.jpg"})
+
+                                response = my_bucket.delete_objects(
+                                    Delete={
+                                        'Objects': obj,
+                                    }
+                                )
+                                response = my_bucket_resized.delete_objects(
+                                    Delete={
+                                        'Objects': obj_resized,
+                                    }
+                                )
+                                images_to_delete = ReservationImage.objects.filter(reservation=reservation).filter(
+                                    name__in=data['deletedImages'])
+                                images_to_delete.delete()
+
+                            images = iter(request.data)
+                            next(images)
+
+                            responses = []
+                            num_images = 0
+                            for image, idx in enumerate(images):
+
+                                num_images = num_images + 1
+                                try:
+                                    name = uuid.uuid4()
+                                    s3_object_name = "photos" + "/" + str(id) + "/" + str(name) + "/" + "image.jpg"
+                                    response = s3_client.generate_presigned_post(
+                                        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+                                        Key=s3_object_name,
+                                        ExpiresIn=3600
+                                    )
+                                    responses.append(response)
+                                    reservation_image = ReservationImage()
+                                    reservation_image.name = name
+                                    reservation_image.reservation = reservation
+                                    reservation_image.save()
+                                except ClientError as e:
+                                    reservation.hall.num_of_images = reservation.hall.num_of_images + idx
+                                    reservation.hall.save()
+                                    return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+                            phoneNumber = "+90" + reservation.phone
+                            message = "Merhabalar,Linkten Ulaşabileceğiniz Albümünüz Güncellenmiştir.\nBizi Tercih Ettiğiniz için Teşekkür Ederiz.\n" + "Albüm Şifresi:" + reservation.code + "\nsalonayır.com/photos/" + str(
+                                reservation.id)
+                            if phoneNumber != "+90":
+                                s3_client = session.client('sns', 'us-east-2')
+                                s3_client.publish(PhoneNumber=phoneNumber, Message=message)
+
+                                reservation.hall.num_of_messages = reservation.hall.num_of_messages + 1
+
+                            if data['duration'] != 0 and data['duration'] < 21:
+                                reservation.duration = data['duration']
+                                reservation.save()
+                            reservation.hall.num_of_images = reservation.hall.num_of_images + num_images
+                            reservation.hall.save()
+
+                            return Response(responses, status=status.HTTP_200_OK)
+                        else:
+                            return Response([], status.HTTP_417_EXPECTATION_FAILED)
+
+                    else:
                         session = Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
                                           aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
                                           region_name="us-east-2")
 
                         s3_client = session.client('s3', region_name="us-east-2",
                                                    config=Config(signature_version='s3v4'))
-                        s3_resource = session.resource('s3',region_name="us-east-2", config=Config(signature_version='s3v4'))
+                        s3_resource = session.resource('s3')
                         my_bucket = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
                         my_bucket_resized = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME_RESIZED)
                         obj = []
@@ -322,7 +398,8 @@ class ReservationPhotosAPIView(APIView):
                         if data['deletedImages'] != []:
                             for image in data['deletedImages']:
                                 obj.append({'Key': 'photos/' + str(reservation.id) + '/' + image + "/image.jpg"})
-                                obj_resized.append({'Key': 'resized-photos/' + str(reservation.id) + '/' + image + "/image.jpg"})
+                                obj_resized.append(
+                                    {'Key': 'resized-photos/' + str(reservation.id) + '/' + image + "/image.jpg"})
 
                             response = my_bucket.delete_objects(
                                 Delete={
@@ -343,9 +420,9 @@ class ReservationPhotosAPIView(APIView):
 
                         responses = []
                         num_images = 0
-                        for image,idx in enumerate(images):
+                        for image, idx in enumerate(images):
 
-                            num_images =  num_images +1
+                            num_images = num_images + 1
                             try:
                                 name = uuid.uuid4()
                                 s3_object_name = "photos" + "/" + str(id) + "/" + str(name) + "/" + "image.jpg"
@@ -364,87 +441,13 @@ class ReservationPhotosAPIView(APIView):
                                 reservation.hall.save()
                                 return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
-                        phoneNumber = "+90" + reservation.phone
-                        message = "Merhabalar,Linkten Ulaşabileceğiniz Albümünüz Güncellenmiştir.\nBizi Tercih Ettiğiniz için Teşekkür Ederiz.\n"+"Albüm Şifresi:"+reservation.code + "\nsalonayır.com/photos/" + str(reservation.id)
-                        if phoneNumber != "+90":
-                            s3_client = session.client('sns', 'us-east-2')
-                            s3_client.publish(PhoneNumber=phoneNumber,Message=message)
-
-                            reservation.hall.num_of_messages = reservation.hall.num_of_messages + 1
-
                         if data['duration'] != 0 and data['duration'] < 21:
                             reservation.duration = data['duration']
                             reservation.save()
                         reservation.hall.num_of_images = reservation.hall.num_of_images + num_images
                         reservation.hall.save()
-
                         return Response(responses, status=status.HTTP_200_OK)
-                    else:
-                        return Response([],status.HTTP_417_EXPECTATION_FAILED)
 
-                else:
-                    session = Session(aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-                                      aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-                                      region_name="us-east-2")
-
-                    s3_client = session.client('s3', region_name="us-east-2", config=Config(signature_version='s3v4'))
-                    s3_resource = session.resource('s3')
-                    my_bucket = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
-                    my_bucket_resized = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME_RESIZED)
-                    obj = []
-                    obj_resized = []
-                    if data['deletedImages'] != []:
-                        for image in data['deletedImages']:
-                            obj.append({'Key': 'photos/' + str(reservation.id) + '/' + image + "/image.jpg"})
-                            obj_resized.append(
-                                {'Key': 'resized-photos/' + str(reservation.id) + '/' + image + "/image.jpg"})
-
-                        response = my_bucket.delete_objects(
-                            Delete={
-                                'Objects': obj,
-                            }
-                        )
-                        response = my_bucket_resized.delete_objects(
-                            Delete={
-                                'Objects': obj_resized,
-                            }
-                        )
-                        images_to_delete = ReservationImage.objects.filter(reservation=reservation).filter(
-                            name__in=data['deletedImages'])
-                        images_to_delete.delete()
-
-                    images = iter(request.data)
-                    next(images)
-
-                    responses = []
-                    num_images=0
-                    for image,idx in enumerate(images):
-
-                        num_images = num_images +1
-                        try:
-                            name = uuid.uuid4()
-                            s3_object_name = "photos" + "/" + str(id) + "/" + str(name) + "/" + "image.jpg"
-                            response = s3_client.generate_presigned_post(
-                                Bucket=settings.AWS_STORAGE_BUCKET_NAME,
-                                Key=s3_object_name,
-                                ExpiresIn=3600
-                            )
-                            responses.append(response)
-                            reservation_image = ReservationImage()
-                            reservation_image.name = name
-                            reservation_image.reservation = reservation
-                            reservation_image.save()
-                        except ClientError as e:
-                            reservation.hall.num_of_images = reservation.hall.num_of_images + idx
-                            reservation.hall.save()
-                            return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
-
-                    if data['duration'] != 0 and data['duration'] < 21:
-                        reservation.duration = data['duration']
-                        reservation.save()
-                    reservation.hall.num_of_images = reservation.hall.num_of_images + num_images
-                    reservation.hall.save()
-                    return Response(responses,status=status.HTTP_200_OK)
         return Response(status=status.HTTP_401_UNAUTHORIZED)
 
     def delete(self, request, id):
@@ -470,58 +473,24 @@ class ReservationCheckAuthAPIView(APIView):
         reservation = self.get_reservation(request.data['id'])
 
         if str(reservation.code) == request.data['code']:
-            s3_client = boto3.client('s3')
-            if (reservation.date + timedelta(weeks=24)) > timezone.now():
-                serializer = ReservationSerializer(reservation)
-                images = ReservationImage.objects.filter(reservation=reservation)
-                responses = []
-
-                for image in images:
-                    s3_object_name = "photos" + "/" + str(reservation.id) + "/" + str(image.name) + "/" + "image.jpg"
-                    s3_object_name_resized = "resized-photos" + "/" + str(reservation.id) + "/" + str(
-                        image.name) + "/" + "image.jpg"
-
-                    response = s3_client.generate_presigned_url(
-                        "get_object",
-                        Params={
-                            "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
-                            "Key": s3_object_name
-                        },
-                        ExpiresIn=3600
-                    )
-                    response_resized = s3_client.generate_presigned_url(
-                        "get_object",
-                        Params={
-                            "Bucket": settings.AWS_STORAGE_BUCKET_NAME_RESIZED,
-                            "Key": s3_object_name_resized,
-                        },
-                        ExpiresIn=3600
-                    )
-                    image_urls = {
-                        "original":response,
-                        "thumbnail":response_resized
-                    }
-                    responses.append(image_urls)
-                res = {
-                    "images": responses,
-                    "data": serializer.data
-                }
-                return Response(res, status=status.HTTP_200_OK)
-            else:
-                if reservation.count_of_visit < 300:
+            if reservation.payment_done:
+                s3_client = boto3.client('s3')
+                if (reservation.date + timedelta(weeks=24)) > timezone.now():
                     serializer = ReservationSerializer(reservation)
-                    reservation.count_of_visit += 1
-                    reservation.save()
                     images = ReservationImage.objects.filter(reservation=reservation)
                     responses = []
+
                     for image in images:
-                        s3_object_name = "photos" + "/" + str(reservation.id) + "/" + str(image.name) + "/" + "image.jpg"
-                        s3_object_name_resized = "resized-photos" + "/" + str(reservation.id) + "/" + str(image.name) + "/" + "image.jpg"
+                        s3_object_name = "photos" + "/" + str(reservation.id) + "/" + str(
+                            image.name) + "/" + "image.jpg"
+                        s3_object_name_resized = "resized-photos" + "/" + str(reservation.id) + "/" + str(
+                            image.name) + "/" + "image.jpg"
+
                         response = s3_client.generate_presigned_url(
                             "get_object",
                             Params={
-                                "Bucket":settings.AWS_STORAGE_BUCKET_NAME,
-                                "Key":s3_object_name,
+                                "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+                                "Key": s3_object_name
                             },
                             ExpiresIn=3600
                         )
@@ -533,19 +502,59 @@ class ReservationCheckAuthAPIView(APIView):
                             },
                             ExpiresIn=3600
                         )
-
                         image_urls = {
                             "original": response,
                             "thumbnail": response_resized
                         }
                         responses.append(image_urls)
-
                     res = {
-                        "images":responses,
-                        "data":serializer.data
+                        "images": responses,
+                        "data": serializer.data
                     }
                     return Response(res, status=status.HTTP_200_OK)
                 else:
-                    return Response(status=status.HTTP_403_FORBIDDEN)
+                    if reservation.count_of_visit < 300:
+                        serializer = ReservationSerializer(reservation)
+                        reservation.count_of_visit += 1
+                        reservation.save()
+                        images = ReservationImage.objects.filter(reservation=reservation)
+                        responses = []
+                        for image in images:
+                            s3_object_name = "photos" + "/" + str(reservation.id) + "/" + str(
+                                image.name) + "/" + "image.jpg"
+                            s3_object_name_resized = "resized-photos" + "/" + str(reservation.id) + "/" + str(
+                                image.name) + "/" + "image.jpg"
+                            response = s3_client.generate_presigned_url(
+                                "get_object",
+                                Params={
+                                    "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+                                    "Key": s3_object_name,
+                                },
+                                ExpiresIn=3600
+                            )
+                            response_resized = s3_client.generate_presigned_url(
+                                "get_object",
+                                Params={
+                                    "Bucket": settings.AWS_STORAGE_BUCKET_NAME_RESIZED,
+                                    "Key": s3_object_name_resized,
+                                },
+                                ExpiresIn=3600
+                            )
+
+                            image_urls = {
+                                "original": response,
+                                "thumbnail": response_resized
+                            }
+                            responses.append(image_urls)
+
+                        res = {
+                            "images": responses,
+                            "data": serializer.data
+                        }
+                        return Response(res, status=status.HTTP_200_OK)
+                    else:
+                        return Response(status=status.HTTP_403_FORBIDDEN)
+            else:
+                return Response(status=status.HTTP_402_PAYMENT_REQUIRED)
         else:
             return Response(status=status.HTTP_401_UNAUTHORIZED)

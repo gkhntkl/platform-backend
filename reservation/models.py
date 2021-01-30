@@ -69,28 +69,29 @@ class ReservationImage(models.Model):
 def log_deleted_question(sender, instance, using, **kwargs):
     images = ReservationImage.objects.filter(reservation=instance)
 
-    s3_client = session.client('s3', region_name="us-east-2",
-                               config=Config(signature_version='s3v4'))
-    s3_resource = session.resource('s3', region_name="us-east-2", config=Config(signature_version='s3v4'))
-    my_bucket = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
-    my_bucket_resized = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME_RESIZED)
-    obj = []
-    obj_resized = []
+    if len(images) > 0:
+        s3_client = session.client('s3', region_name="us-east-2",
+                                   config=Config(signature_version='s3v4'))
+        s3_resource = session.resource('s3', region_name="us-east-2", config=Config(signature_version='s3v4'))
+        my_bucket = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME)
+        my_bucket_resized = s3_resource.Bucket(settings.AWS_STORAGE_BUCKET_NAME_RESIZED)
+        obj = []
+        obj_resized = []
 
-    for image in images:
-        obj.append({'Key': 'photos/' + str(instance.id) + '/' + image.name + "/image.jpg"})
-        obj_resized.append({'Key': 'resized-photos/' + str(instance.id) + '/' + image.name + "/image.jpg"})
+        for image in images:
+            obj.append({'Key': 'photos/' + str(instance.id) + '/' + image.name + "/image.jpg"})
+            obj_resized.append({'Key': 'resized-photos/' + str(instance.id) + '/' + image.name + "/image.jpg"})
 
-    my_bucket.delete_objects(
-        Delete={
-            'Objects': obj,
-        }
-    )
-    my_bucket_resized.delete_objects(
-        Delete={
-            'Objects': obj_resized,
-        }
-    )
+        my_bucket.delete_objects(
+            Delete={
+                'Objects': obj,
+            }
+        )
+        my_bucket_resized.delete_objects(
+            Delete={
+                'Objects': obj_resized,
+            }
+        )
 
 
 

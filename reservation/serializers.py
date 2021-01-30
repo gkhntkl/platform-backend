@@ -11,7 +11,7 @@ class ReservationSerializer(serializers.ModelSerializer):
         model = Reservation
         fields = '__all__'
         extra_kwargs = {
-            'payment_done': {'write_only': True},
+
             'code': {'write_only': True},
         }
 
