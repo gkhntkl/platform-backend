@@ -474,7 +474,8 @@ class ReservationCheckAuthAPIView(APIView):
 
         if str(reservation.code) == request.data['code']:
             if reservation.payment_done:
-                s3_client = boto3.client('s3')
+                s3_client = boto3.client('s3', region_name="us-east-2",
+                                                       config=Config(signature_version='s3v4'))
                 if (reservation.date + timedelta(weeks=24)) > timezone.now():
                     serializer = ReservationSerializer(reservation)
                     images = ReservationImage.objects.filter(reservation=reservation)
