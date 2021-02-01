@@ -44,7 +44,7 @@ class Reservation(models.Model):
     payment_done = models.BooleanField(default=False)
     code = models.IntegerField(default=11111111)
     count_of_visit = models.IntegerField(default=0)
-    num_of_unpaid = models.IntegerField(default=0)
+    num_of_unpaidpo  = models.IntegerField(default=0)
 
     def save(self, *args, **kwargs):
         if self.code == 11111111:
