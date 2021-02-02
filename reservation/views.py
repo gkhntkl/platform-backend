@@ -255,7 +255,7 @@ class ReservationHallDetailAPIView(APIView):
 
     def get_hall_reservation(self, id, user):
         try:
-            return Reservation.objects.filter(hall_id=id, hall__user=user).order_by('date')
+            return Reservation.objects.filter(hall_id=id, hall__user=user,hidden=False).order_by('date')
         except Reservation.DoesNotExist:
             raise Http404
 
@@ -264,6 +264,26 @@ class ReservationHallDetailAPIView(APIView):
         reservation = self.get_hall_reservation(id, request.user)
         serializer = ReservationSerializer(reservation, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+class ReservationHideAPIView(APIView):
+    authentication_classes = [TokenAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get_hall_reservation(self, id):
+        try:
+            return Reservation.objects.get(id=id)
+        except Reservation.DoesNotExist:
+            raise Http404
+
+    def get(self, request, id):
+
+        reservation = self.get_hall_reservation(id)
+        if request.user.id == reservation.hall.user.id:
+            reservation.hidden = True
+            reservation.save()
+            return Response(status=status.HTTP_200_OK)
+        else:
+            return Response(status=status.HTTP_401_UNAUTHORIZED)
 
 class ReservationAlbumAPIView(APIView):
 
@@ -366,7 +386,7 @@ class ReservationPhotosAPIView(APIView):
                                 return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
 
                         phoneNumber = "+90" + reservation.phone
-                        message = "Merhabalar,Linkten Ulaşabileceğiniz Albümünüz Güncellenmiştir.\nBizi Tercih Ettiğiniz için Teşekkür Ederiz.\n" + "Albüm Şifresi:" + reservation.code + "\nsalonayır.com/photos/" + str(
+                        message = "Merhabalar,Linkten Ulaşabileceğiniz Albümünüz Güncellenmiştir.\nBizi Tercih Ettiğiniz için Teşekkür Ederiz.\n" + "Albüm Şifresi:" + str(reservation.code) + "\nsalonayır.com/photos/" + str(
                             reservation.id)
                         if phoneNumber != "+90":
                             s3_client = session.client('sns', 'us-east-2')

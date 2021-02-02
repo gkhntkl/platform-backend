@@ -12,5 +12,6 @@ urlpatterns = [
     path('<uuid:id>/', ReservationDetailAPIView.as_view()),
     path('checkauth/', ReservationCheckAuthAPIView.as_view()),
     path('save_photos/<uuid:id>/', ReservationSavePhotosAPIView.as_view()),
+    path('hide/<uuid:id>/', ReservationHideAPIView.as_view()),
 
 ]
