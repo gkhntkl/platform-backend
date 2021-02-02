@@ -133,7 +133,8 @@ class ReservationUpdateAPIView(APIView):
                 if request.data['hall'] != reservation.hall.id:
                     return Response(status=status.HTTP_401_UNAUTHORIZED)
                 else:
-
+                    if request.data['smsChecked'] and (reservation.hall.num_of_messages >= reservation.hall.quota_of_messages):
+                        return Response(status=status.HTTP_417_EXPECTATION_FAILED)
                     if len(request.data['portion']) == 0:
                         if (request.data['close']):
                             s = Slot.objects.filter(pk=request.data['date'][0:10]).first()
@@ -171,6 +172,14 @@ class ReservationUpdateAPIView(APIView):
                     reservation.date = request.data['date']
 
                     reservation.save()
+                    if request.data['smsChecked']:
+                        phoneNumber = "+90" + reservation.phone
+                        message = "Merhabalar,\nGüncel Rezervasyon Detaylarınıza Aşağıdaki Linkten Ulaşabilirsiniz.\n" + "salonayır.com/reservation/" + str(
+                            reservation.id)
+                        if phoneNumber != "+90":
+                            s3_client.publish(PhoneNumber=phoneNumber, Message=message)
+                            reservation.hall.num_of_messages = reservation.hall.num_of_messages + 1
+                            reservation.hall.save()
                 return Response(status=status.HTTP_200_OK)
 
             return Response(status=status.HTTP_401_UNAUTHORIZED)
